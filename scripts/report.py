@@ -9,14 +9,18 @@ Usage:
     python scripts/report.py --host 192.168.1.100
     python scripts/report.py --host 192.168.1.100 --json
     python scripts/report.py --host 192.168.1.100 --output report.txt
+    python scripts/report.py --host 192.168.1.100 --csv data.csv
+    python scripts/report.py --host 192.168.1.100 --csv data.csv --interval 5
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import logging
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -189,6 +193,167 @@ def collect_sensor_data(client: WAB11SyncClient) -> dict[str, Any]:
     return data
 
 
+def flatten_data_for_csv(data: dict[str, Any]) -> dict[str, Any]:
+    """Flatten the nested data structure into a single dictionary for CSV output."""
+    flat = {
+        "timestamp": data["timestamp"],
+        "host": data["host"],
+        # System
+        "system_mode": data["system"]["mode"],
+        "operating_state": data["system"]["operating_state"],
+        "outdoor_temp_1": data["system"]["outdoor_temp_1"],
+        "outdoor_temp_2": data["system"]["outdoor_temp_2"],
+        "error_code": data["system"]["error_code"],
+        "warning_code": data["system"]["warning_code"],
+        "is_error_free": data["system"]["is_error_free"],
+        "has_error": data["system"]["has_error"],
+        "has_warning": data["system"]["has_warning"],
+        "power_request_watts": data["system"]["power_request_watts"],
+        # Hot water
+        "ww_is_configured": data["hot_water"]["is_configured"],
+        "ww_temperature": data["hot_water"]["temperature"],
+        "ww_setpoint_effective": data["hot_water"]["setpoint_effective"],
+        "ww_setpoint_normal": data["hot_water"]["setpoint_normal"],
+        "ww_setpoint_setback": data["hot_water"]["setpoint_setback"],
+        "ww_is_push_active": data["hot_water"]["is_push_active"],
+        "ww_push_minutes": data["hot_water"]["push_minutes"],
+        "ww_is_charging": data["hot_water"]["is_charging"],
+        "ww_status": data["hot_water"]["status"],
+        # Heat pump
+        "wp_is_configured": data["heat_pump"]["is_configured"],
+        "wp_operating_state": data["heat_pump"]["operating_state"],
+        "wp_is_error_free": data["heat_pump"]["is_error_free"],
+        "wp_power_request_percent": data["heat_pump"]["power_request_percent"],
+        "wp_flow_temp_b4": data["heat_pump"]["flow_temp_b4"],
+        "wp_return_temp": data["heat_pump"]["return_temp"],
+        "wp_evaporator_temp": data["heat_pump"]["evaporator_temp"],
+        "wp_suction_gas_temp": data["heat_pump"]["suction_gas_temp"],
+        "wp_separator_temp_b2": data["heat_pump"]["separator_temp_b2"],
+        "wp_buffer_temp_b11": data["heat_pump"]["buffer_temp_b11"],
+        "wp_sum_flow_b7": data["heat_pump"]["sum_flow_b7"],
+        "wp_spread": data["heat_pump"]["spread"],
+        "wp_supports_cooling": data["heat_pump"]["supports_cooling"],
+        "wp_is_quiet_mode": data["heat_pump"]["is_quiet_mode"],
+        "wp_pump_power_heating": data["heat_pump"]["pump_power_heating"],
+        "wp_pump_power_cooling": data["heat_pump"]["pump_power_cooling"],
+        "wp_pump_power_hot_water": data["heat_pump"]["pump_power_hot_water"],
+        # Secondary heat
+        "sh_is_wez2_configured": data["secondary_heat"]["is_wez2_configured"],
+        "sh_is_wez2_active": data["secondary_heat"]["is_wez2_active"],
+        "sh_is_e1_configured": data["secondary_heat"]["is_e1_configured"],
+        "sh_is_e1_active": data["secondary_heat"]["is_e1_active"],
+        "sh_is_e2_configured": data["secondary_heat"]["is_e2_configured"],
+        "sh_is_e2_active": data["secondary_heat"]["is_e2_active"],
+        "sh_operating_hours_wez2": data["secondary_heat"]["operating_hours_wez2"],
+        "sh_operating_hours_e1": data["secondary_heat"]["operating_hours_e1"],
+        "sh_operating_hours_e2": data["secondary_heat"]["operating_hours_e2"],
+        "sh_limit_temp": data["secondary_heat"]["limit_temp"],
+        "sh_bivalence_temp_heating": data["secondary_heat"]["bivalence_temp_heating"],
+        "sh_bivalence_temp_hot_water": data["secondary_heat"]["bivalence_temp_hot_water"],
+        # Inputs
+        "sg_ready_state": data["inputs"]["sg_ready_state"],
+        "sg_ready_1": data["inputs"]["sg_ready_1"],
+        "sg_ready_2": data["inputs"]["sg_ready_2"],
+        "is_evu_lock": data["inputs"]["is_evu_lock"],
+        "is_sg_maximum": data["inputs"]["is_sg_maximum"],
+        "active_inputs": ",".join(data["inputs"]["active_inputs"]) if data["inputs"]["active_inputs"] else "",
+        # Energy
+        "energy_total_today": data["energy"]["total"]["today"],
+        "energy_total_yesterday": data["energy"]["total"]["yesterday"],
+        "energy_total_month": data["energy"]["total"]["month"],
+        "energy_total_year": data["energy"]["total"]["year"],
+        "energy_heating_today": data["energy"]["heating"]["today"],
+        "energy_heating_yesterday": data["energy"]["heating"]["yesterday"],
+        "energy_heating_month": data["energy"]["heating"]["month"],
+        "energy_heating_year": data["energy"]["heating"]["year"],
+        "energy_hot_water_today": data["energy"]["hot_water"]["today"],
+        "energy_hot_water_yesterday": data["energy"]["hot_water"]["yesterday"],
+        "energy_hot_water_month": data["energy"]["hot_water"]["month"],
+        "energy_hot_water_year": data["energy"]["hot_water"]["year"],
+        "energy_cooling_today": data["energy"]["cooling"]["today"],
+        "energy_cooling_yesterday": data["energy"]["cooling"]["yesterday"],
+        "energy_cooling_month": data["energy"]["cooling"]["month"],
+        "energy_cooling_year": data["energy"]["cooling"]["year"],
+    }
+    
+    # Add heating circuit data (up to 5 circuits)
+    for i in range(1, 6):
+        hk_data = next((hk for hk in data["heating_circuits"] if hk["id"] == i), None)
+        prefix = f"hk{i}_"
+        
+        if hk_data and hk_data.get("is_configured"):
+            flat[f"{prefix}is_configured"] = True
+            flat[f"{prefix}config"] = hk_data.get("config")
+            flat[f"{prefix}mode"] = hk_data.get("mode")
+            flat[f"{prefix}room_temp"] = hk_data.get("room_temp")
+            flat[f"{prefix}room_setpoint_effective"] = hk_data.get("room_setpoint_effective")
+            flat[f"{prefix}room_humidity"] = hk_data.get("room_humidity")
+            flat[f"{prefix}flow_temp"] = hk_data.get("flow_temp")
+            flat[f"{prefix}flow_setpoint"] = hk_data.get("flow_setpoint")
+            flat[f"{prefix}setpoint_comfort"] = hk_data.get("setpoint_comfort")
+            flat[f"{prefix}setpoint_normal"] = hk_data.get("setpoint_normal")
+            flat[f"{prefix}setpoint_setback"] = hk_data.get("setpoint_setback")
+            flat[f"{prefix}is_party_active"] = hk_data.get("is_party_active")
+            flat[f"{prefix}is_pause_active"] = hk_data.get("is_pause_active")
+            flat[f"{prefix}is_heating"] = hk_data.get("is_heating")
+            flat[f"{prefix}is_cooling"] = hk_data.get("is_cooling")
+            flat[f"{prefix}heating_curve_slope"] = hk_data.get("heating_curve_slope")
+        else:
+            flat[f"{prefix}is_configured"] = False
+            # Set other fields to None for non-configured circuits
+            for field in ["config", "mode", "room_temp", "room_setpoint_effective", 
+                          "room_humidity", "flow_temp", "flow_setpoint", "setpoint_comfort",
+                          "setpoint_normal", "setpoint_setback", "is_party_active",
+                          "is_pause_active", "is_heating", "is_cooling", "heating_curve_slope"]:
+                flat[f"{prefix}{field}"] = None
+    
+    return flat
+
+
+def write_csv(data: dict[str, Any], filepath: str) -> bool:
+    """
+    Write data to a CSV file. Appends if file exists, creates with header if not.
+    
+    Args:
+        data: The collected sensor data
+        filepath: Path to the CSV file
+        
+    Returns:
+        True if file was appended to, False if new file was created
+    """
+    flat_data = flatten_data_for_csv(data)
+    file_path = Path(filepath)
+    file_exists = file_path.exists()
+    
+    # Get the column order (consistent across all writes)
+    fieldnames = list(flat_data.keys())
+    
+    if file_exists:
+        # Read existing headers to ensure consistency
+        with open(file_path, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            existing_fieldnames = reader.fieldnames or []
+            
+        # Use existing field order, but add any new fields at the end
+        for field in fieldnames:
+            if field not in existing_fieldnames:
+                existing_fieldnames.append(field)
+        fieldnames = existing_fieldnames
+        
+        # Append new data
+        with open(file_path, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writerow(flat_data)
+    else:
+        # Create new file with header
+        with open(file_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerow(flat_data)
+    
+    return file_exists
+
+
 def generate_text_report(data: dict[str, Any]) -> str:
     """Generate a human-readable text report."""
     lines = []
@@ -349,6 +514,34 @@ def generate_text_report(data: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def run_single_collection(client: WAB11SyncClient, args) -> dict[str, Any]:
+    """Run a single data collection and output."""
+    data = collect_sensor_data(client)
+    
+    # Handle CSV output
+    if args.csv:
+        appended = write_csv(data, args.csv)
+        if appended:
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Data appended to {args.csv}", file=sys.stderr)
+        else:
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] CSV file created: {args.csv}", file=sys.stderr)
+    
+    # Handle text/JSON output
+    if args.json:
+        output = json.dumps(data, indent=2, default=str)
+    else:
+        output = generate_text_report(data)
+    
+    if args.output:
+        Path(args.output).write_text(output, encoding="utf-8")
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Report written to {args.output}", file=sys.stderr)
+    elif not args.csv and not args.interval:
+        # Only print to stdout if no CSV output, no file output, and not in continuous mode
+        print(output)
+    
+    return data
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Generate a status report from WAB11 heat pump controller",
@@ -359,6 +552,8 @@ Examples:
     python scripts/report.py --host 192.168.1.100 --json
     python scripts/report.py --host 192.168.1.100 --output report.txt
     python scripts/report.py --host 192.168.1.100 --json --output data.json
+    python scripts/report.py --host 192.168.1.100 --csv data.csv
+    python scripts/report.py --host 192.168.1.100 --csv data.csv --interval 5
         """
     )
     
@@ -379,9 +574,21 @@ Examples:
         help="Output in JSON format instead of text"
     )
     parser.add_argument(
+        "--csv",
+        type=str,
+        metavar="FILE",
+        help="Write data to CSV file (appends if file exists)"
+    )
+    parser.add_argument(
         "--output", "-o",
         type=str,
         help="Write output to file instead of stdout"
+    )
+    parser.add_argument(
+        "--interval", "-i",
+        type=float,
+        metavar="MINUTES",
+        help="Continuous mode: collect data every N minutes (use with --csv)"
     )
     parser.add_argument(
         "--timeout",
@@ -389,7 +596,6 @@ Examples:
         default=5.0,
         help="Connection timeout in seconds (default: 5.0)"
     )
-
     parser.add_argument(
         "--debug",
         action="store_true",
@@ -397,35 +603,108 @@ Examples:
     )
     
     args = parser.parse_args()
+    
     if args.debug:
-        logging.basicConfig(level=logging.DEBUG)    
+        logging.basicConfig(level=logging.DEBUG)
+    
+    # Validate continuous mode requirements
+    if args.interval is not None and args.interval <= 0:
+        print("Error: --interval must be a positive number", file=sys.stderr)
+        sys.exit(1)
+    
+    if args.interval and not args.csv:
+        print("Warning: --interval without --csv will only print to stderr", file=sys.stderr)
+    
     try:
-        print(f"Connecting to WAB11 at {args.host}:{args.port}...", file=sys.stderr)
-        
-        with WAB11SyncClient(
-            host=args.host,
-            port=args.port,
-            timeout=args.timeout,
-            require_write_confirmation=True,
-            enable_rate_limiting=False,
-        ) as client:
-            print("Reading sensor data...", file=sys.stderr)
-            data = collect_sensor_data(client)
-            
-            if args.json:
-                output = json.dumps(data, indent=2, default=str)
-            else:
-                output = generate_text_report(data)
-            
-            if args.output:
-                Path(args.output).write_text(output, encoding="utf-8")
-                print(f"Report written to {args.output}", file=sys.stderr)
-            else:
-                print(output)
+        if args.interval:
+            # Continuous mode
+            run_continuous(args)
+        else:
+            # Single run mode
+            run_single(args)
                 
     except KeyboardInterrupt:
         print("\nAborted.", file=sys.stderr)
         sys.exit(1)
+
+
+def run_single(args):
+    """Run a single data collection."""
+    print(f"Connecting to WAB11 at {args.host}:{args.port}...", file=sys.stderr)
+    
+    with WAB11SyncClient(
+        host=args.host,
+        port=args.port,
+        timeout=args.timeout,
+        require_write_confirmation=True,
+        enable_rate_limiting=False,
+    ) as client:
+        print("Reading sensor data...", file=sys.stderr)
+        run_single_collection(client, args)
+
+
+def run_continuous(args):
+    """Run continuous data collection at specified intervals."""
+    interval_seconds = args.interval * 60
+    collection_count = 0
+    error_count = 0
+    max_consecutive_errors = 5
+    
+    print(f"Starting continuous monitoring of WAB11 at {args.host}:{args.port}", file=sys.stderr)
+    print(f"Interval: {args.interval} minutes ({interval_seconds:.0f} seconds)", file=sys.stderr)
+    print("Press Ctrl+C to stop.", file=sys.stderr)
+    print("", file=sys.stderr)
+    
+    while True:
+        try:
+            # Create a new connection for each collection to handle connection drops
+            with WAB11SyncClient(
+                host=args.host,
+                port=args.port,
+                timeout=args.timeout,
+                require_write_confirmation=True,
+                enable_rate_limiting=False,
+            ) as client:
+                data = run_single_collection(client, args)
+                collection_count += 1
+                error_count = 0  # Reset error count on success
+                
+                # Print a summary line
+                sys_data = data["system"]
+                outdoor_temp = sys_data.get("outdoor_temp_1")
+                outdoor_str = f"{outdoor_temp:.1f}°C" if outdoor_temp is not None else "N/A"
+                print(
+                    f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                    f"#{collection_count} | "
+                    f"State: {sys_data['operating_state']} | "
+                    f"Outdoor: {outdoor_str} | "
+                    f"Next in {args.interval:.1f} min",
+                    file=sys.stderr
+                )
+                
+        except KeyboardInterrupt:
+            raise  # Re-raise to be caught by main()
+            
+        except Exception as e:
+            error_count += 1
+            print(
+                f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                f"Error ({error_count}/{max_consecutive_errors}): {e}",
+                file=sys.stderr
+            )
+            
+            if error_count >= max_consecutive_errors:
+                print(
+                    f"Too many consecutive errors ({max_consecutive_errors}). Stopping.",
+                    file=sys.stderr
+                )
+                sys.exit(1)
+        
+        # Wait for next interval
+        try:
+            time.sleep(interval_seconds)
+        except KeyboardInterrupt:
+            raise
    
 
 
