@@ -11,6 +11,7 @@ Usage:
     python scripts/report.py --host 192.168.1.100 --output report.txt
     python scripts/report.py --host 192.168.1.100 --csv data.csv
     python scripts/report.py --host 192.168.1.100 --csv data.csv --interval 5
+    python scripts/report.py --host 192.168.1.100 --heating-circuits 3
 """
 
 from __future__ import annotations
@@ -542,7 +543,7 @@ def run_single_collection(client: WAB11SyncClient, args) -> dict[str, Any]:
     return data
 
 
-def main():
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Generate a status report from WAB11 heat pump controller",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -554,6 +555,7 @@ Examples:
     python scripts/report.py --host 192.168.1.100 --json --output data.json
     python scripts/report.py --host 192.168.1.100 --csv data.csv
     python scripts/report.py --host 192.168.1.100 --csv data.csv --interval 5
+    python scripts/report.py --host 192.168.1.100 --heating-circuits 3
         """
     )
     
@@ -597,13 +599,43 @@ Examples:
         help="Connection timeout in seconds (default: 5.0)"
     )
     parser.add_argument(
+        "--heating-circuits",
+        dest="n_heating_circuits",
+        type=int,
+        choices=range(1, 6),
+        default=5,
+        metavar="COUNT",
+        help="Number of heating circuits exposed by the controller (1-5, default: 5)"
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Enable debug logging"
     )
-    
-    args = parser.parse_args()
-    
+
+    return parser
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse command-line arguments."""
+    return build_parser().parse_args(argv)
+
+
+def create_client(args) -> WAB11SyncClient:
+    """Create a synchronous WAB11 client from parsed arguments."""
+    return WAB11SyncClient(
+        host=args.host,
+        port=args.port,
+        timeout=args.timeout,
+        n_heating_circuits=args.n_heating_circuits,
+        require_write_confirmation=True,
+        enable_rate_limiting=False,
+    )
+
+
+def main():
+    args = parse_args()
+
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
     
@@ -631,14 +663,8 @@ Examples:
 def run_single(args):
     """Run a single data collection."""
     print(f"Connecting to WAB11 at {args.host}:{args.port}...", file=sys.stderr)
-    
-    with WAB11SyncClient(
-        host=args.host,
-        port=args.port,
-        timeout=args.timeout,
-        require_write_confirmation=True,
-        enable_rate_limiting=False,
-    ) as client:
+
+    with create_client(args) as client:
         print("Reading sensor data...", file=sys.stderr)
         run_single_collection(client, args)
 
@@ -658,13 +684,7 @@ def run_continuous(args):
     while True:
         try:
             # Create a new connection for each collection to handle connection drops
-            with WAB11SyncClient(
-                host=args.host,
-                port=args.port,
-                timeout=args.timeout,
-                require_write_confirmation=True,
-                enable_rate_limiting=False,
-            ) as client:
+            with create_client(args) as client:
                 data = run_single_collection(client, args)
                 collection_count += 1
                 error_count = 0  # Reset error count on success
@@ -710,4 +730,3 @@ def run_continuous(args):
 
 if __name__ == "__main__":
     main()
-

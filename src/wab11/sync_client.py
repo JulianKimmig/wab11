@@ -49,6 +49,7 @@ class WAB11SyncClient:
         require_write_confirmation: bool = True,
         enable_rate_limiting: bool = True,
         timeout: float = 3.0,
+        n_heating_circuits: int = 5,
     ) -> None:
         """
         Initialize synchronous client.
@@ -60,6 +61,7 @@ class WAB11SyncClient:
             require_write_confirmation: Require explicit confirmation for critical writes
             enable_rate_limiting: Enable write rate limiting
             timeout: Connection timeout in seconds
+            n_heating_circuits: Number of heating circuits (default: 5)
         """
         self._host = host
         self._port = port
@@ -67,6 +69,7 @@ class WAB11SyncClient:
         self._require_write_confirmation = require_write_confirmation
         self._enable_rate_limiting = enable_rate_limiting
         self._timeout = timeout
+        self._n_heating_circuits = n_heating_circuits
 
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._client: Optional[WAB11Client] = None
@@ -96,6 +99,7 @@ class WAB11SyncClient:
             require_write_confirmation=self._require_write_confirmation,
             enable_rate_limiting=self._enable_rate_limiting,
             timeout=self._timeout,
+            n_heating_circuits=self._n_heating_circuits,
         )
         self._run(self._client.connect())
 
@@ -312,4 +316,3 @@ class WAB11SyncClient:
     def __repr__(self) -> str:
         status = "connected" if self.is_connected else "disconnected"
         return f"WAB11SyncClient({self._host}, {status})"
-

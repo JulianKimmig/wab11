@@ -61,8 +61,9 @@ def test_create_client_forwards_heating_circuit_count(monkeypatch: pytest.Monkey
 
     report.create_client(args)
 
-    assert captured["args"] == ("127.0.0.1",)
+    assert captured["args"] == ()
     assert captured["kwargs"] == {
+        "host": "127.0.0.1",
         "port": 1502,
         "timeout": 4.0,
         "n_heating_circuits": 2,
