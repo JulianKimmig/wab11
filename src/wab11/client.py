@@ -24,6 +24,7 @@ from .models.base import (
     RequestType,
     SystemMode,
     Temperature,
+    decode_signed_16,
 )
 from .models.energy import EnergyStatistics
 from .models.heat_pump import HeatPumpState
@@ -39,6 +40,11 @@ from .security.rate_limiter import RateLimiter
 from .security.validator import WriteValidator
 
 logger = logging.getLogger(__name__)
+
+
+def _decode_temperature(raw: int) -> Temperature:
+    """Decode a raw 16-bit Modbus register into a Temperature."""
+    return Temperature(decode_signed_16(raw))
 
 
 @dataclass
@@ -101,7 +107,7 @@ class WAB11Client:
         require_write_confirmation: bool = True,
         enable_rate_limiting: bool = True,
         timeout: float = 3.0,
-        n_heating_circuits: int = 4,
+        n_heating_circuits: int = 5,
     ) -> None:
         """
         Initialize WAB11 client.
@@ -113,8 +119,11 @@ class WAB11Client:
             require_write_confirmation: Require explicit confirmation for critical writes
             enable_rate_limiting: Enable write rate limiting
             timeout: Connection timeout in seconds
-            n_heating_circuits: Number of heating circuits (default: 4)
+            n_heating_circuits: Number of heating circuits (default: 5)
         """
+        if not 1 <= n_heating_circuits <= 5:
+            raise ValidationError("n_heating_circuits must be 1-5")
+
         self._config = ConnectionConfig(
             host=host,
             port=port,
@@ -178,6 +187,13 @@ class WAB11Client:
     def host(self) -> str:
         """Get the host address."""
         return self._config.host
+
+    def _get_heating_circuit(self, circuit: int) -> HeatingCircuit:
+        """Return a configured heating circuit or raise ValidationError."""
+        max_circuit = len(self._heating_circuits)
+        if not 1 <= circuit <= max_circuit:
+            raise ValidationError(f"Circuit must be 1-{max_circuit}")
+        return self._heating_circuits[circuit - 1]
 
     # =========================================================================
     # State Properties (Read-Only Views)
@@ -456,12 +472,11 @@ class WAB11Client:
         Raises:
             ValidationError: If circuit or mode invalid
         """
-        if not 1 <= circuit <= 5:
-            raise ValidationError("Circuit must be 1-5")
+        hk = self._get_heating_circuit(circuit)
 
         register_name = f"hk{circuit}_mode"
         await self._write_register(register_name, mode)
-        self._heating_circuits[circuit - 1].mode = mode
+        hk.mode = mode
 
     async def set_heating_circuit_setpoint(
         self,
@@ -480,8 +495,7 @@ class WAB11Client:
         Raises:
             ValidationError: If parameters invalid
         """
-        if not 1 <= circuit <= 5:
-            raise ValidationError("Circuit must be 1-5")
+        hk = self._get_heating_circuit(circuit)
         if level not in ("comfort", "normal", "setback"):
             raise ValidationError("Level must be 'comfort', 'normal', or 'setback'")
 
@@ -489,7 +503,6 @@ class WAB11Client:
         await self._write_register(register_name, temperature)
 
         # Update local state
-        hk = self._heating_circuits[circuit - 1]
         temp = Temperature.from_celsius(temperature)
         if level == "comfort":
             hk.setpoint_comfort = temp
@@ -515,8 +528,7 @@ class WAB11Client:
         Raises:
             ValidationError: If parameters invalid
         """
-        if not 1 <= circuit <= 5:
-            raise ValidationError("Circuit must be 1-5")
+        hk = self._get_heating_circuit(circuit)
 
         if mode == "auto":
             value = PartyPauseCode.AUTOMATIC
@@ -529,7 +541,7 @@ class WAB11Client:
 
         register_name = f"hk{circuit}_party_pause"
         await self._write_register(register_name, value)
-        self._heating_circuits[circuit - 1].party_pause = value
+        hk.party_pause = value
 
     async def set_hot_water_setpoint(
         self,
@@ -638,8 +650,8 @@ class WAB11Client:
         holding_values = await self._connection.read_holding_registers(40001, 2)
 
         # Update state with change detection
-        self._update_cached_state("outdoor_temp_1", Temperature(input_values[0]))
-        self._update_cached_state("outdoor_temp_2", Temperature(input_values[1]))
+        self._update_cached_state("outdoor_temp_1", _decode_temperature(input_values[0]))
+        self._update_cached_state("outdoor_temp_2", _decode_temperature(input_values[1]))
         self._update_cached_state("error_code", input_values[2])
         self._update_cached_state("warning_code", input_values[3])
         self._update_cached_state("ok_flag", bool(input_values[4]))
@@ -648,8 +660,8 @@ class WAB11Client:
         self._update_cached_state("power_request", holding_values[1])
 
         # Apply to model
-        self._system.outdoor_temp_1 = Temperature(input_values[0])
-        self._system.outdoor_temp_2 = Temperature(input_values[1])
+        self._system.outdoor_temp_1 = _decode_temperature(input_values[0])
+        self._system.outdoor_temp_2 = _decode_temperature(input_values[1])
         self._system.error_code = input_values[2]
         self._system.warning_code = input_values[3]
         self._system.is_error_free = bool(input_values[4])
@@ -694,11 +706,11 @@ class WAB11Client:
             return
 
         # Input registers
-        hk.room_setpoint_effective = Temperature(input_values[0])
-        hk.room_temp = Temperature(input_values[1])
+        hk.room_setpoint_effective = _decode_temperature(input_values[0])
+        hk.room_temp = _decode_temperature(input_values[1])
         hk.room_humidity = input_values[2] if input_values[2] != 0xFFFF else None
-        hk.flow_setpoint = Temperature(input_values[3])
-        hk.flow_temp = Temperature(input_values[4])
+        hk.flow_setpoint = _decode_temperature(input_values[3])
+        hk.flow_temp = _decode_temperature(input_values[4])
 
         # Holding registers
         try:
@@ -712,22 +724,22 @@ class WAB11Client:
             pass
 
         hk.party_pause = holding_values[3]
-        hk.setpoint_comfort = Temperature(holding_values[4])
-        hk.setpoint_normal = Temperature(holding_values[5])
-        hk.setpoint_setback = Temperature(holding_values[6])
+        hk.setpoint_comfort = _decode_temperature(holding_values[4])
+        hk.setpoint_normal = _decode_temperature(holding_values[5])
+        hk.setpoint_setback = _decode_temperature(holding_values[6])
         hk.heating_curve_slope = holding_values[7]
         hk.summer_winter_threshold = holding_values[8]
-        hk.constant_temp_heating = Temperature(holding_values[9])
-        hk.constant_temp_heating_setback = Temperature(holding_values[10])
-        hk.constant_temp_cooling = Temperature(holding_values[11])
+        hk.constant_temp_heating = _decode_temperature(holding_values[9])
+        hk.constant_temp_heating_setback = _decode_temperature(holding_values[10])
+        hk.constant_temp_cooling = _decode_temperature(holding_values[11])
 
     async def _sync_hot_water(self) -> None:
         """Sync hot water state."""
         input_values = await self._connection.read_input_registers(32101, 2)
         holding_values = await self._connection.read_holding_registers(42101, 5)
 
-        self._hot_water.setpoint_effective = Temperature(input_values[0])
-        self._hot_water.temperature = Temperature(input_values[1])
+        self._hot_water.setpoint_effective = _decode_temperature(input_values[0])
+        self._hot_water.temperature = _decode_temperature(input_values[1])
 
         try:
             self._hot_water.config = HotWaterConfig(holding_values[0])
@@ -735,9 +747,9 @@ class WAB11Client:
             pass
 
         self._hot_water.push_minutes = holding_values[1]
-        self._hot_water.setpoint_normal = Temperature(holding_values[2])
-        self._hot_water.setpoint_setback = Temperature(holding_values[3])
-        self._hot_water.sg_ready_boost = Temperature(holding_values[4])
+        self._hot_water.setpoint_normal = _decode_temperature(holding_values[2])
+        self._hot_water.setpoint_setback = _decode_temperature(holding_values[3])
+        self._hot_water.sg_ready_boost = _decode_temperature(holding_values[4])
 
     async def _sync_heat_pump(self) -> None:
         """Sync heat pump state."""
@@ -755,14 +767,14 @@ class WAB11Client:
 
         self._heat_pump.is_error_free = bool(input_values[1])
         self._heat_pump.power_request_percent = input_values[2]
-        self._heat_pump.flow_temp_b4 = Temperature(input_values[3])
-        self._heat_pump.return_temp = Temperature(input_values[4])
-        self._heat_pump.evaporator_temp = Temperature(input_values[5])
-        self._heat_pump.suction_gas_temp = Temperature(input_values[6])
-        self._heat_pump.separator_temp_b2 = Temperature(input_values[7])
-        self._heat_pump.regenerative_flow_b21 = Temperature(input_values[8])
-        self._heat_pump.buffer_temp_b11 = Temperature(input_values[9])
-        self._heat_pump.sum_flow_b7 = Temperature(input_values[10])
+        self._heat_pump.flow_temp_b4 = _decode_temperature(input_values[3])
+        self._heat_pump.return_temp = _decode_temperature(input_values[4])
+        self._heat_pump.evaporator_temp = _decode_temperature(input_values[5])
+        self._heat_pump.suction_gas_temp = _decode_temperature(input_values[6])
+        self._heat_pump.separator_temp_b2 = _decode_temperature(input_values[7])
+        self._heat_pump.regenerative_flow_b21 = _decode_temperature(input_values[8])
+        self._heat_pump.buffer_temp_b11 = _decode_temperature(input_values[9])
+        self._heat_pump.sum_flow_b7 = _decode_temperature(input_values[10])
 
         # Holding registers
         try:
@@ -796,9 +808,9 @@ class WAB11Client:
         self._secondary_heat.config_wez2 = holding_values[0]
         self._secondary_heat.config_e1 = holding_values[1]
         self._secondary_heat.config_e2 = holding_values[2]
-        self._secondary_heat.limit_temp = Temperature(holding_values[3])
-        self._secondary_heat.bivalence_temp_heating = Temperature(holding_values[4])
-        self._secondary_heat.bivalence_temp_hot_water = Temperature(holding_values[5])
+        self._secondary_heat.limit_temp = _decode_temperature(holding_values[3])
+        self._secondary_heat.bivalence_temp_heating = _decode_temperature(holding_values[4])
+        self._secondary_heat.bivalence_temp_hot_water = _decode_temperature(holding_values[5])
 
     async def _sync_inputs(self) -> None:
         """Sync digital inputs and SG-Ready state."""
@@ -860,4 +872,3 @@ class WAB11Client:
         status = "connected" if self.is_connected else "disconnected"
         polling = ", polling" if self.is_polling else ""
         return f"WAB11Client({self.host}, {status}{polling})"
-

@@ -241,7 +241,7 @@ The library supports all documented WAB11 Modbus registers:
 # Install with dev dependencies
 pip install -e ".[dev]"
 
-# Run tests
+# Run the default test suite
 pytest
 
 # Type checking
@@ -250,6 +250,40 @@ mypy src/wab11
 # Linting
 ruff check src/wab11
 ```
+
+### Testing
+
+The default test suite uses a fake Modbus system defined in
+`tests/fixtures/fake_system.json`. That fixture is used for normal
+regression tests and is safe to run on any machine because it does not
+talk to a real controller.
+
+The repository also includes a `warm` live-device test in
+`tests/test_warm_live_device.py`. This test is skipped by default and
+must be enabled explicitly. It is designed to be read-only:
+
+- It only connects, syncs state, syncs energy values, and reads registers
+- It does not call any library write API
+- It replaces the connection write method with a failing guard, so the test aborts immediately if any write is attempted
+
+Run the warm test only when you intentionally want to exercise a real
+WAB11 device:
+
+```bash
+pytest tests/test_warm_live_device.py \
+  --run-warm \
+  --warm-host <ip-or-host> \
+  --warm-heating-circuits <1-5>
+```
+
+You can also provide the live-device settings through environment
+variables:
+
+- `WAB11_TEST_HOST`
+- `WAB11_TEST_PORT`
+- `WAB11_TEST_UNIT_ID`
+- `WAB11_TEST_TIMEOUT`
+- `WAB11_TEST_HEATING_CIRCUITS`
 
 ## License
 
