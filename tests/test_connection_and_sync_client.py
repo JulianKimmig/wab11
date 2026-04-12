@@ -350,6 +350,7 @@ def test_sync_client_wrapper_behaviour(monkeypatch: pytest.MonkeyPatch) -> None:
         "require_write_confirmation": False,
         "enable_rate_limiting": False,
         "timeout": 4.0,
+        "n_heating_circuits": 5,
     }
     assert sync.is_connected is True
     assert sync.host == "10.0.0.7"
@@ -385,3 +386,28 @@ def test_sync_client_wrapper_behaviour(monkeypatch: pytest.MonkeyPatch) -> None:
     with sync_client_module.WAB11SyncClient("10.0.0.8") as managed:
         assert managed.is_connected is True
     assert managed._loop is not None and managed._loop.is_closed()
+
+
+def test_sync_client_forwards_custom_heating_circuit_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    created_clients: list[DummyAsyncClient] = []
+
+    def fake_client_factory(*args, **kwargs):
+        client = DummyAsyncClient(*args, **kwargs)
+        client.init_kwargs = kwargs
+        created_clients.append(client)
+        return client
+
+    monkeypatch.setattr(sync_client_module, "WAB11Client", fake_client_factory)
+
+    sync = sync_client_module.WAB11SyncClient(
+        "10.0.0.9",
+        n_heating_circuits=3,
+    )
+
+    sync.connect()
+
+    assert created_clients[-1].init_kwargs["n_heating_circuits"] == 3
+
+    sync.disconnect()
