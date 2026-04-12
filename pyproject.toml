@@ -43,3 +43,8 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/wab11"]
 
+[dependency-groups]
+dev = [
+    "wab11[dev]"
+]
+
