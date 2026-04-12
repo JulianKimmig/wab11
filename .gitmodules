@@ -1,0 +1,3 @@
+[submodule "submodules/hacs-wab11"]
+	path = submodules/hacs-wab11
+	url = https://github.com/JulianKimmig/hacs-wab11
