@@ -41,6 +41,8 @@ dev = [
     "pytest-cov>=4.0",
     "mypy>=1.0",
     "ruff>=0.1",
+    "flake8>=7.3.0",
+    "reorder-python-imports>=3.16.0",
 ]
 
 [tool.hatch.build.targets.wheel]

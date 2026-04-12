@@ -112,7 +112,9 @@ def make_client(
     return client
 
 
-def test_client_defaults_to_five_heating_circuits(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_client_defaults_to_five_heating_circuits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     client = make_client(monkeypatch=monkeypatch)
 
     assert [hk.circuit_id for hk in client.heating_circuits] == [1, 2, 3, 4, 5]
@@ -163,7 +165,13 @@ def test_sync_decodes_signed_temperatures_from_raw_modbus_registers(
             raw16(-120),
         ],
         hot_water_inputs=[raw16(-130), raw16(-140)],
-        hot_water_holdings=[HotWaterConfig.PUMP, 0, raw16(-150), raw16(-160), raw16(-170)],
+        hot_water_holdings=[
+            HotWaterConfig.PUMP,
+            0,
+            raw16(-150),
+            raw16(-160),
+            raw16(-170),
+        ],
         heat_pump_inputs=[
             OperatingState.HEATING,
             1,
@@ -177,7 +185,18 @@ def test_sync_decodes_signed_temperatures_from_raw_modbus_registers(
             raw16(-240),
             raw16(-250),
         ],
-        heat_pump_holdings=[HeatPumpConfig.HEATING_ONLY, 0, 0, 50, 50, 50, 50, 10, 10, 10],
+        heat_pump_holdings=[
+            HeatPumpConfig.HEATING_ONLY,
+            0,
+            0,
+            50,
+            50,
+            50,
+            50,
+            10,
+            10,
+            10,
+        ],
         secondary_inputs=[0, 0, 0, 0, 0, 0, 0],
         secondary_holdings=[0, 5, 6, raw16(-260), raw16(-270), raw16(-280)],
     )
@@ -194,7 +213,9 @@ def test_sync_decodes_signed_temperatures_from_raw_modbus_registers(
         "cache.outdoor_temp_2": client._state_cache["outdoor_temp_2"],
         "system.outdoor_temp_1": client.system.outdoor_temp_1,
         "system.outdoor_temp_2": client.system.outdoor_temp_2,
-        "hk.room_setpoint_effective": client.heating_circuits[0].room_setpoint_effective,
+        "hk.room_setpoint_effective": client.heating_circuits[
+            0
+        ].room_setpoint_effective,
         "hk.room_temp": client.heating_circuits[0].room_temp,
         "hk.flow_setpoint": client.heating_circuits[0].flow_setpoint,
         "hk.flow_temp": client.heating_circuits[0].flow_temp,
@@ -202,7 +223,9 @@ def test_sync_decodes_signed_temperatures_from_raw_modbus_registers(
         "hk.setpoint_normal": client.heating_circuits[0].setpoint_normal,
         "hk.setpoint_setback": client.heating_circuits[0].setpoint_setback,
         "hk.constant_temp_heating": client.heating_circuits[0].constant_temp_heating,
-        "hk.constant_temp_heating_setback": client.heating_circuits[0].constant_temp_heating_setback,
+        "hk.constant_temp_heating_setback": client.heating_circuits[
+            0
+        ].constant_temp_heating_setback,
         "hk.constant_temp_cooling": client.heating_circuits[0].constant_temp_cooling,
         "hot_water.setpoint_effective": client.hot_water.setpoint_effective,
         "hot_water.temperature": client.hot_water.temperature,
@@ -258,7 +281,9 @@ def test_sync_decodes_signed_temperatures_from_raw_modbus_registers(
         assert temperature.raw == expected_raws[name], name
 
 
-def test_sync_decodes_temperature_sentinel_values(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sync_decodes_temperature_sentinel_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     connection = make_sync_connection(
         system_inputs=[0x8000, 0x8001, 65535, 65535, 1, OperatingState.HEATING],
         system_holdings=[SystemMode.HEATING, 1234],
@@ -292,7 +317,18 @@ def test_sync_decodes_temperature_sentinel_values(monkeypatch: pytest.MonkeyPatc
             0x8000,
             0x8001,
         ],
-        heat_pump_holdings=[HeatPumpConfig.HEATING_ONLY, 0, 0, 50, 50, 50, 50, 10, 10, 10],
+        heat_pump_holdings=[
+            HeatPumpConfig.HEATING_ONLY,
+            0,
+            0,
+            50,
+            50,
+            50,
+            50,
+            10,
+            10,
+            10,
+        ],
         secondary_inputs=[0, 0, 0, 0, 0, 0, 0],
         secondary_holdings=[0, 5, 6, 0x8001, 0x8000, 0x8001],
     )

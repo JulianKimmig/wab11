@@ -108,4 +108,3 @@ class EnergyStatistics:
             f"month={self.total.month:.1f}kWh, "
             f"year={self.total.year:.1f}kWh)"
         )
-

@@ -5,18 +5,17 @@ import asyncio
 import pytest
 
 from wab11 import (
-    HeatPumpConfig,
-    HeatingCircuitConfig,
-    HeatingCircuitStatus,
-    HotWaterConfig,
-    HotWaterStatus,
     InputFunction,
     InputsState,
     PartyPauseCode,
-    RequestType,
     SecondaryHeatSourceState,
 )
-from wab11.registers.definitions import DataFormat, RegisterDef, RegisterType, generate_heating_circuit_registers
+from wab11.registers.definitions import (
+    DataFormat,
+    RegisterDef,
+    RegisterType,
+    generate_heating_circuit_registers,
+)
 from wab11.registers.formats import FormatCodec
 from wab11.security.rate_limiter import RateLimiter
 
@@ -61,7 +60,9 @@ def test_register_definition_helpers_and_generation_boundaries() -> None:
         generate_heating_circuit_registers(0)
 
 
-def test_rate_limiter_waits_for_per_register_window(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rate_limiter_waits_for_per_register_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     current_time = 100.0
     sleep_calls: list[float] = []
 
@@ -73,7 +74,9 @@ def test_rate_limiter_waits_for_per_register_window(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr("wab11.security.rate_limiter.time.time", lambda: current_time)
     monkeypatch.setattr("wab11.security.rate_limiter.asyncio.sleep", fake_sleep)
 
-    limiter = RateLimiter(global_limit=10, per_register_limit=2, cooldown=0.0, window=10.0)
+    limiter = RateLimiter(
+        global_limit=10, per_register_limit=2, cooldown=0.0, window=10.0
+    )
 
     async def exercise() -> None:
         await limiter.acquire("hk1")

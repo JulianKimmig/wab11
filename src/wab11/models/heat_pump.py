@@ -142,4 +142,3 @@ class HeatPumpState:
             f"flow={self.flow_temp_b4.celsius}°C, "
             f"return={self.return_temp.celsius}°C)"
         )
-

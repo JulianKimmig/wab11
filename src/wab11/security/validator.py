@@ -9,7 +9,12 @@ from __future__ import annotations
 
 from typing import Any, Tuple
 
-from ..exceptions import ReadOnlyError, SafetyError, UnknownRegisterError, ValidationError
+from ..exceptions import (
+    ReadOnlyError,
+    SafetyError,
+    UnknownRegisterError,
+    ValidationError,
+)
 from ..registers.definitions import ALL_REGISTERS, DataFormat, RegisterDef
 from ..registers.formats import FormatCodec
 
@@ -192,7 +197,12 @@ class WriteValidator:
             try:
                 raw, reg = self.validate_write(name, value, confirmed)
                 validated.append((name, raw, reg))
-            except (ValidationError, SafetyError, UnknownRegisterError, ReadOnlyError) as e:
+            except (
+                ValidationError,
+                SafetyError,
+                UnknownRegisterError,
+                ReadOnlyError,
+            ) as e:
                 errors.append(f"  - {name}: {e}")
 
         if errors:
@@ -234,4 +244,3 @@ class WriteValidator:
 
         reg = ALL_REGISTERS[register_name]
         return (reg.min_value, reg.max_value)
-

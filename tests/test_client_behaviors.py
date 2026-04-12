@@ -226,12 +226,17 @@ async def test_client_high_level_write_methods_update_state_and_audit(
     await client.write_register("power_request", 9500)
 
     assert fake_system_connection.writes == [
-        (ALL_REGISTERS[name].address, FormatCodec.encode(ALL_REGISTERS[name].fmt, value))
+        (
+            ALL_REGISTERS[name].address,
+            FormatCodec.encode(ALL_REGISTERS[name].fmt, value),
+        )
         for name, value in expected_writes
     ]
     assert limiter.acquired == [name for name, _ in expected_writes]
     assert [event.source for event in local_events] == ["local"] * len(expected_writes)
-    assert [event.register for event in local_events] == [name for name, _ in expected_writes]
+    assert [event.register for event in local_events] == [
+        name for name, _ in expected_writes
+    ]
     assert client.system.system_mode == SystemMode.COOLING
     assert client.heating_circuits[0].mode == HeatingCircuitMode.COMFORT
     assert client.heating_circuits[0].setpoint_comfort.celsius == 21.5
@@ -255,16 +260,22 @@ async def test_client_high_level_methods_validate_arguments(
     with pytest.raises(ValidationError, match="Circuit must be 1-2"):
         await client.set_heating_circuit_mode(3, HeatingCircuitMode.AUTOMATIC)
 
-    with pytest.raises(ValidationError, match="Level must be 'comfort', 'normal', or 'setback'"):
+    with pytest.raises(
+        ValidationError, match="Level must be 'comfort', 'normal', or 'setback'"
+    ):
         await client.set_heating_circuit_setpoint(1, "boost", 21.0)
 
-    with pytest.raises(ValidationError, match="Mode must be 'party', 'pause', or 'auto'"):
+    with pytest.raises(
+        ValidationError, match="Mode must be 'party', 'pause', or 'auto'"
+    ):
         await client.set_heating_party_pause(1, "boost")
 
     with pytest.raises(ValidationError, match="Level must be 'normal' or 'setback'"):
         await client.set_hot_water_setpoint("comfort", 50.0)
 
-    with pytest.raises(ValidationError, match="Push minutes must be 0 \\(off\\) or 5-240"):
+    with pytest.raises(
+        ValidationError, match="Push minutes must be 0 \\(off\\) or 5-240"
+    ):
         await client.trigger_hot_water_push(4)
 
 
@@ -307,7 +318,20 @@ async def test_client_sync_preserves_previous_values_for_unknown_enums(
             (
                 41101,
                 12,
-            ): [HeatingCircuitConfig.PUMP_CIRCUIT.value, 999, 999, 25, 225, 205, 175, 12, 18, 350, 280, 180],
+            ): [
+                HeatingCircuitConfig.PUMP_CIRCUIT.value,
+                999,
+                999,
+                25,
+                225,
+                205,
+                175,
+                12,
+                18,
+                350,
+                280,
+                180,
+            ],
             (42101, 5): [999, 0, 500, 430, 20],
             (43101, 10): [999, 0, 0, 70, 65, 75, 80, 18, 12, 9],
             (44101, 6): [0, 5, 6, 65416, 65486, 65506],
@@ -345,7 +369,20 @@ async def test_client_sync_treats_unknown_heating_config_as_not_configured(
     connection = ExactRegisterConnection(
         input_blocks={(31101, 5): [215, 208, 40, 320, 318]},
         holding_blocks={
-            (41101, 12): [999, 1, HeatingCircuitMode.COMFORT.value, 25, 225, 205, 175, 12, 18, 350, 280, 180]
+            (41101, 12): [
+                999,
+                1,
+                HeatingCircuitMode.COMFORT.value,
+                25,
+                225,
+                205,
+                175,
+                12,
+                18,
+                350,
+                280,
+                180,
+            ]
         },
     )
     client = make_test_client(connection, n_heating_circuits=1)

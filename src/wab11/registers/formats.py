@@ -144,7 +144,9 @@ class FormatCodec:
                 elif isinstance(value, (int, float)):
                     raw = int(round(value * 10))
                 else:
-                    raise TypeError(f"Cannot encode {type(value).__name__} as temperature")
+                    raise TypeError(
+                        f"Cannot encode {type(value).__name__} as temperature"
+                    )
                 return FormatCodec._to_unsigned(raw)
 
             case DataFormat.BOOL:
@@ -171,7 +173,9 @@ class FormatCodec:
                     return value
                 elif isinstance(value, str):
                     return HeatingCircuitMode[value.upper()].value
-                raise TypeError(f"Cannot encode {type(value).__name__} as HeatingCircuitMode")
+                raise TypeError(
+                    f"Cannot encode {type(value).__name__} as HeatingCircuitMode"
+                )
 
             case DataFormat.HEATING_STATUS:
                 if isinstance(value, HeatingCircuitStatus):
@@ -230,4 +234,3 @@ class FormatCodec:
         if value < 0:
             return value + 0x10000
         return value & 0xFFFF
-

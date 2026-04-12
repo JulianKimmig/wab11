@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Optional
 
 from .exceptions import ConnectionError, TimeoutError
@@ -207,7 +207,9 @@ class WAB11Connection:
                 count - chunk_start,
             )
 
-            logger.debug(f"Reading input registers from {address + chunk_start} to {address + chunk_start + chunk_size}")
+            logger.debug(
+                f"Reading input registers from {address + chunk_start} to {address + chunk_start + chunk_size}"
+            )
             response = await self._read_input_with_retry(
                 address + chunk_start,
                 chunk_size,
@@ -415,4 +417,3 @@ class WAB11Connection:
     def __repr__(self) -> str:
         status = "connected" if self.is_connected else "disconnected"
         return f"WAB11Connection({self._config.host}:{self._config.port}, {status})"
-

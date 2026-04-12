@@ -9,12 +9,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable, Optional
 
 from .connection import ConnectionConfig, WAB11Connection
-from .exceptions import ConnectionError, ValidationError
+from .exceptions import ValidationError
 from .models.base import (
     HeatingCircuitConfig,
     HeatingCircuitMode,
@@ -133,7 +133,9 @@ class WAB11Client:
         self._connection = WAB11Connection(self._config)
 
         # Security components
-        self._validator = WriteValidator(require_confirmation=require_write_confirmation)
+        self._validator = WriteValidator(
+            require_confirmation=require_write_confirmation
+        )
         self._rate_limiter = RateLimiter() if enable_rate_limiting else None
         self._audit = AuditLog()
 
@@ -338,7 +340,9 @@ class WAB11Client:
         """
         self._change_callbacks.append(callback)
 
-    def remove_change_callback(self, callback: Callable[[StateChangeEvent], None]) -> bool:
+    def remove_change_callback(
+        self, callback: Callable[[StateChangeEvent], None]
+    ) -> bool:
         """
         Remove a change callback.
 
@@ -650,8 +654,12 @@ class WAB11Client:
         holding_values = await self._connection.read_holding_registers(40001, 2)
 
         # Update state with change detection
-        self._update_cached_state("outdoor_temp_1", _decode_temperature(input_values[0]))
-        self._update_cached_state("outdoor_temp_2", _decode_temperature(input_values[1]))
+        self._update_cached_state(
+            "outdoor_temp_1", _decode_temperature(input_values[0])
+        )
+        self._update_cached_state(
+            "outdoor_temp_2", _decode_temperature(input_values[1])
+        )
         self._update_cached_state("error_code", input_values[2])
         self._update_cached_state("warning_code", input_values[3])
         self._update_cached_state("ok_flag", bool(input_values[4]))
@@ -692,7 +700,9 @@ class WAB11Client:
         input_values = await self._connection.read_input_registers(input_base + 1, 5)
 
         # Read key holding registers
-        holding_values = await self._connection.read_holding_registers(holding_base + 1, 12)
+        holding_values = await self._connection.read_holding_registers(
+            holding_base + 1, 12
+        )
 
         # Check if configured
         try:
@@ -809,8 +819,12 @@ class WAB11Client:
         self._secondary_heat.config_e1 = holding_values[1]
         self._secondary_heat.config_e2 = holding_values[2]
         self._secondary_heat.limit_temp = _decode_temperature(holding_values[3])
-        self._secondary_heat.bivalence_temp_heating = _decode_temperature(holding_values[4])
-        self._secondary_heat.bivalence_temp_hot_water = _decode_temperature(holding_values[5])
+        self._secondary_heat.bivalence_temp_heating = _decode_temperature(
+            holding_values[4]
+        )
+        self._secondary_heat.bivalence_temp_hot_water = _decode_temperature(
+            holding_values[5]
+        )
 
     async def _sync_inputs(self) -> None:
         """Sync digital inputs and SG-Ready state."""

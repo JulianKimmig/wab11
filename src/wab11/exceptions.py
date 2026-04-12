@@ -80,4 +80,3 @@ class DeviceWarning(WAB11Error):
     def __init__(self, warning_code: int, message: str = "") -> None:
         self.warning_code = warning_code
         super().__init__(f"Device warning {warning_code}: {message}")
-
