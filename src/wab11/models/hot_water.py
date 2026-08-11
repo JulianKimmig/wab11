@@ -8,7 +8,6 @@ and setback temperatures, and hot water push/boost functionality.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from .base import HotWaterConfig, HotWaterStatus, Temperature
 
@@ -42,8 +41,12 @@ class HotWaterState:
 
     # Holding registers (read/write)
     push_minutes: int = 0  # 0=off, 5-240 minutes
-    setpoint_normal: Temperature = field(default_factory=lambda: Temperature.from_celsius(50.0))
-    setpoint_setback: Temperature = field(default_factory=lambda: Temperature.from_celsius(40.0))
+    setpoint_normal: Temperature = field(
+        default_factory=lambda: Temperature.from_celsius(50.0)
+    )
+    setpoint_setback: Temperature = field(
+        default_factory=lambda: Temperature.from_celsius(40.0)
+    )
     sg_ready_boost: Temperature = field(default_factory=Temperature.no_value)  # 0-30K
 
     @property
@@ -102,4 +105,3 @@ class HotWaterState:
             f"target={self.target_temp}°C, "
             f"status={self.status.name}{push_info})"
         )
-

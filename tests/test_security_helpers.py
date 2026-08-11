@@ -88,7 +88,9 @@ def test_write_validator_error_paths_and_bulk_errors() -> None:
         validator.get_register_limits("missing_register")
 
 
-def test_rate_limiter_cooldown_global_and_register_limits(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rate_limiter_cooldown_global_and_register_limits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     current_time = 1000.0
     sleep_calls: list[float] = []
 
@@ -100,7 +102,9 @@ def test_rate_limiter_cooldown_global_and_register_limits(monkeypatch: pytest.Mo
     monkeypatch.setattr("wab11.security.rate_limiter.time.time", lambda: current_time)
     monkeypatch.setattr("wab11.security.rate_limiter.asyncio.sleep", fake_sleep)
 
-    limiter = RateLimiter(global_limit=2, per_register_limit=2, cooldown=1.0, window=10.0)
+    limiter = RateLimiter(
+        global_limit=2, per_register_limit=2, cooldown=1.0, window=10.0
+    )
 
     async def exercise() -> None:
         await limiter.acquire("hk1")
@@ -124,7 +128,9 @@ def test_rate_limiter_cooldown_global_and_register_limits(monkeypatch: pytest.Mo
 
 def test_rate_limiter_cleanup_and_properties(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("wab11.security.rate_limiter.time.time", lambda: 20.0)
-    limiter = RateLimiter(global_limit=9, per_register_limit=2, cooldown=2.5, window=10.0)
+    limiter = RateLimiter(
+        global_limit=9, per_register_limit=2, cooldown=2.5, window=10.0
+    )
     limiter._global_writes = [1.0, 15.0, 19.0]
     limiter._register_writes = defaultdict(list, {"hk1": [15.0, 18.0]})
 
@@ -141,13 +147,18 @@ def test_audit_log_operations_and_export() -> None:
     log._logger = fake_logger
 
     ok_write = log.log_write("system_mode", 0, 1, success=True)
-    failed_write = log.log_write("power_request", 1000, 2000, success=False, error="boom")
+    failed_write = log.log_write(
+        "power_request", 1000, 2000, success=False, error="boom"
+    )
     failed_read = log.log_read("outdoor_temp_1", None, success=False, error="timeout")
     success_read = log.log_read("outdoor_temp_2", 42, success=True)
 
     assert len(log) == 3
     recent = log.get_recent(2)
-    assert recent == [failed_write, failed_read] or recent == [failed_read, success_read]
+    assert recent == [failed_write, failed_read] or recent == [
+        failed_read,
+        success_read,
+    ]
     assert log.get_writes() == [failed_write]
     assert log.get_writes(register="power_request") == [failed_write]
     assert log.get_by_register("outdoor_temp_2") == [success_read]

@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 authors = [
-    { name = "WAB11 Contributors" }
+    { name = "Julian Kimmig", email = "julian.kimmig@gmx.net" }
 ]
 keywords = ["weishaupt", "wab11", "heat-pump", "modbus", "home-automation", "hvac"]
 classifiers = [
@@ -31,6 +31,9 @@ dependencies = [
     "pandas>=2.3.3",
 ]
 
+[project.urls]
+Repository = "https://github.com/JulianKimmig/wab11/"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",
@@ -38,6 +41,8 @@ dev = [
     "pytest-cov>=4.0",
     "mypy>=1.0",
     "ruff>=0.1",
+    "flake8>=7.3.0",
+    "reorder-python-imports>=3.16.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -47,4 +52,3 @@ packages = ["src/wab11"]
 dev = [
     "wab11[dev]"
 ]
-

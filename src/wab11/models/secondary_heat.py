@@ -56,7 +56,9 @@ class SecondaryHeatSourceState:
     config_wez2: int = 255  # 255=off, 0=active
     config_e1: int = 255  # 255=off, 5=active
     config_e2: int = 255  # 255=off, 6=active
-    limit_temp: Temperature = field(default_factory=lambda: Temperature.from_celsius(-20.0))
+    limit_temp: Temperature = field(
+        default_factory=lambda: Temperature.from_celsius(-20.0)
+    )
     bivalence_temp_heating: Temperature = field(
         default_factory=lambda: Temperature.from_celsius(-5.0)
     )
@@ -102,7 +104,11 @@ class SecondaryHeatSourceState:
     @property
     def total_operating_hours(self) -> int:
         """Get total operating hours of all backup sources."""
-        return self.operating_hours_wez2 + self.operating_hours_e1 + self.operating_hours_e2
+        return (
+            self.operating_hours_wez2
+            + self.operating_hours_e1
+            + self.operating_hours_e2
+        )
 
     def should_activate_backup(self, outdoor_temp: float | None) -> bool:
         """
@@ -148,4 +154,3 @@ class SecondaryHeatSourceState:
             active.append("E2")
         active_str = ", ".join(active) if active else "none"
         return f"SecondaryHeatSourceState(active=[{active_str}])"
-

@@ -108,4 +108,3 @@ class SystemState:
             f"outdoor={self.outdoor_temp}°C, "
             f"status={status})"
         )
-

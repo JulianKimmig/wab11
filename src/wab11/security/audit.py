@@ -71,7 +71,7 @@ class AuditLog:
     Usage:
         audit = AuditLog(max_entries=10000)
         audit.log_write("system_mode", old_value=0, new_value=1, success=True)
-        
+
         for entry in audit.get_recent(100):
             print(entry)
     """
@@ -277,4 +277,3 @@ class AuditLog:
             }
             for e in self._entries
         ]
-

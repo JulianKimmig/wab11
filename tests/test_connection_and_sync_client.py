@@ -119,7 +119,9 @@ class DummyAsyncClient:
         self.calls.append(("set_heating_circuit_mode", (circuit, mode), {}))
 
     async def set_heating_circuit_setpoint(self, circuit, level, temperature) -> None:
-        self.calls.append(("set_heating_circuit_setpoint", (circuit, level, temperature), {}))
+        self.calls.append(
+            ("set_heating_circuit_setpoint", (circuit, level, temperature), {})
+        )
 
     async def set_heating_party_pause(self, circuit, mode, hours) -> None:
         self.calls.append(("set_heating_party_pause", (circuit, mode, hours), {}))
@@ -144,18 +146,24 @@ class DummyAsyncClient:
 def setup_fake_pymodbus(monkeypatch: pytest.MonkeyPatch) -> None:
     FakeAsyncModbusClient.reset()
     monkeypatch.setattr(connection_module, "PYMODBUS_AVAILABLE", True)
-    monkeypatch.setattr(connection_module, "AsyncModbusTcpClient", FakeAsyncModbusClient)
+    monkeypatch.setattr(
+        connection_module, "AsyncModbusTcpClient", FakeAsyncModbusClient
+    )
     monkeypatch.setattr(connection_module, "ModbusException", RuntimeError)
 
 
-def test_check_pymodbus_raises_when_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_check_pymodbus_raises_when_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(connection_module, "PYMODBUS_AVAILABLE", False)
 
     with pytest.raises(ImportError):
         _check_pymodbus()
 
 
-def test_connection_connect_disconnect_context_and_repr(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_connection_connect_disconnect_context_and_repr(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     setup_fake_pymodbus(monkeypatch)
     config = ConnectionConfig(host="10.0.0.1", port=502, unit_id=7, timeout=1.5)
     conn = WAB11Connection(config)
@@ -192,7 +200,9 @@ def test_connection_connect_error_paths(monkeypatch: pytest.MonkeyPatch) -> None
     conn = WAB11Connection(ConnectionConfig(host="10.0.0.2"))
 
     async def failed_connect() -> None:
-        with pytest.raises(connection_module.ConnectionError, match="Failed to connect"):
+        with pytest.raises(
+            connection_module.ConnectionError, match="Failed to connect"
+        ):
             await conn.connect()
 
     asyncio.run(failed_connect())
@@ -203,16 +213,26 @@ def test_connection_connect_error_paths(monkeypatch: pytest.MonkeyPatch) -> None
     conn = WAB11Connection(ConnectionConfig(host="10.0.0.3"))
 
     async def exploding_connect() -> None:
-        with pytest.raises(connection_module.ConnectionError, match="Connection failed: boom"):
+        with pytest.raises(
+            connection_module.ConnectionError, match="Connection failed: boom"
+        ):
             await conn.connect()
 
     asyncio.run(exploding_connect())
 
 
-def test_connection_chunked_reads_and_auto_connect(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_connection_chunked_reads_and_auto_connect(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     setup_fake_pymodbus(monkeypatch)
-    FakeAsyncModbusClient.input_results = [FakeResponse([1, 2, 3, 4, 5]), FakeResponse([6, 7])]
-    FakeAsyncModbusClient.holding_results = [FakeResponse([10, 11, 12, 13, 14]), FakeResponse([15])]
+    FakeAsyncModbusClient.input_results = [
+        FakeResponse([1, 2, 3, 4, 5]),
+        FakeResponse([6, 7]),
+    ]
+    FakeAsyncModbusClient.holding_results = [
+        FakeResponse([10, 11, 12, 13, 14]),
+        FakeResponse([15]),
+    ]
 
     conn = WAB11Connection(ConnectionConfig(host="10.0.0.4", max_registers_per_read=5))
 
@@ -269,7 +289,9 @@ def test_connection_read_and_write_retry_paths(monkeypatch: pytest.MonkeyPatch) 
     assert sleep_calls == [0.5, 1.0, 0.5, 1.0, 0.5, 1.0]
 
 
-def test_connection_final_retry_failures_and_reconnect(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_connection_final_retry_failures_and_reconnect(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     setup_fake_pymodbus(monkeypatch)
     sleep_calls: list[float] = []
 
@@ -278,12 +300,17 @@ def test_connection_final_retry_failures_and_reconnect(monkeypatch: pytest.Monke
 
     monkeypatch.setattr(connection_module.asyncio, "sleep", fake_sleep)
 
-    conn = WAB11Connection(ConnectionConfig(host="10.0.0.6", reconnect_delay=2.0, max_retries=2))
+    conn = WAB11Connection(
+        ConnectionConfig(host="10.0.0.6", reconnect_delay=2.0, max_retries=2)
+    )
 
     async def exercise() -> None:
         await conn.connect()
 
-        FakeAsyncModbusClient.input_results = [asyncio.TimeoutError(), asyncio.TimeoutError()]
+        FakeAsyncModbusClient.input_results = [
+            asyncio.TimeoutError(),
+            asyncio.TimeoutError(),
+        ]
         with pytest.raises(
             connection_module.TimeoutError,
             match="Timeout reading input register 30001",
@@ -300,7 +327,10 @@ def test_connection_final_retry_failures_and_reconnect(monkeypatch: pytest.Monke
         ):
             await conn._read_holding_with_retry(40001, 1)
 
-        FakeAsyncModbusClient.write_results = [FakeResponse(error=True), FakeResponse(error=True)]
+        FakeAsyncModbusClient.write_results = [
+            FakeResponse(error=True),
+            FakeResponse(error=True),
+        ]
         with pytest.raises(
             connection_module.ConnectionError,
             match="Write failed: Modbus error writing register 40001",
@@ -363,7 +393,9 @@ def test_sync_client_wrapper_behaviour(monkeypatch: pytest.MonkeyPatch) -> None:
     assert sync.energy == "energy"
     assert sync.audit_log == "audit"
 
-    callback = lambda event: None
+    def callback(event) -> None:
+        pass
+
     sync.on_change(callback)
     sync.sync()
     sync.sync_energy()

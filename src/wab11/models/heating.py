@@ -168,9 +168,15 @@ class HeatingCircuit:
     party_pause: int = PartyPauseCode.AUTOMATIC
 
     # Temperature setpoints
-    setpoint_comfort: Temperature = field(default_factory=lambda: Temperature.from_celsius(22.0))
-    setpoint_normal: Temperature = field(default_factory=lambda: Temperature.from_celsius(20.0))
-    setpoint_setback: Temperature = field(default_factory=lambda: Temperature.from_celsius(17.0))
+    setpoint_comfort: Temperature = field(
+        default_factory=lambda: Temperature.from_celsius(22.0)
+    )
+    setpoint_normal: Temperature = field(
+        default_factory=lambda: Temperature.from_celsius(20.0)
+    )
+    setpoint_setback: Temperature = field(
+        default_factory=lambda: Temperature.from_celsius(17.0)
+    )
 
     # Heating curve parameters
     heating_curve_slope: int = 0
@@ -178,7 +184,9 @@ class HeatingCircuit:
 
     # Constant temperature modes
     constant_temp_heating: Temperature = field(default_factory=Temperature.no_value)
-    constant_temp_heating_setback: Temperature = field(default_factory=Temperature.no_value)
+    constant_temp_heating_setback: Temperature = field(
+        default_factory=Temperature.no_value
+    )
     constant_temp_cooling: Temperature = field(default_factory=Temperature.no_value)
 
     @property
@@ -245,4 +253,3 @@ class HeatingCircuit:
             f"room={self.room_temp.celsius}°C, "
             f"setpoint={self.room_setpoint_effective.celsius}°C)"
         )
-

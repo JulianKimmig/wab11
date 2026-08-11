@@ -8,7 +8,6 @@ including temperature representation and all Modbus enumeration mappings.
 from __future__ import annotations
 
 from enum import IntEnum
-from typing import Any
 
 
 class Temperature:
@@ -309,4 +308,3 @@ def encode_signed_16(value: int) -> int:
     if value < 0:
         return value + 0x10000
     return value
-

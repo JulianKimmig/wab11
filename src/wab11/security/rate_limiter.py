@@ -190,7 +190,6 @@ class RateLimiter:
         Returns:
             Dictionary with current write counts and limits
         """
-        now = time.time()
         global_writes = self._cleanup_old_writes(self._global_writes.copy())
 
         register_counts = {}
@@ -212,4 +211,3 @@ class RateLimiter:
         """Reset all rate limiting counters."""
         self._global_writes.clear()
         self._register_writes.clear()
-

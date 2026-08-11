@@ -33,7 +33,9 @@ class ConfigBackedFakeConnection:
         input_blocks: dict[int, list[int]],
         holding_blocks: dict[int, list[int]],
     ) -> None:
-        self.input_blocks = {address: list(values) for address, values in input_blocks.items()}
+        self.input_blocks = {
+            address: list(values) for address, values in input_blocks.items()
+        }
         self.holding_blocks = {
             address: list(values) for address, values in holding_blocks.items()
         }
@@ -44,9 +46,13 @@ class ConfigBackedFakeConnection:
     def from_config(cls, config: dict[str, Any]) -> "ConfigBackedFakeConnection":
         register_blocks = config["register_blocks"]
         return cls(
-            input_blocks={int(address): values for address, values in register_blocks["input"].items()},
+            input_blocks={
+                int(address): values
+                for address, values in register_blocks["input"].items()
+            },
             holding_blocks={
-                int(address): values for address, values in register_blocks["holding"].items()
+                int(address): values
+                for address, values in register_blocks["holding"].items()
             },
         )
 
@@ -57,10 +63,14 @@ class ConfigBackedFakeConnection:
         self.is_connected = False
 
     async def read_input_registers(self, address: int, count: int = 1) -> list[int]:
-        return self._read_block(self.input_blocks, address, count, register_type="input")
+        return self._read_block(
+            self.input_blocks, address, count, register_type="input"
+        )
 
     async def read_holding_registers(self, address: int, count: int = 1) -> list[int]:
-        return self._read_block(self.holding_blocks, address, count, register_type="holding")
+        return self._read_block(
+            self.holding_blocks, address, count, register_type="holding"
+        )
 
     async def write_register(self, address: int, value: int) -> None:
         self.writes.append((address, value))
@@ -155,7 +165,9 @@ def pytest_collection_modifyitems(
     if config.getoption("--run-warm"):
         return
 
-    skip_warm = pytest.mark.skip(reason="warm tests require --run-warm and a real WAB11")
+    skip_warm = pytest.mark.skip(
+        reason="warm tests require --run-warm and a real WAB11"
+    )
     for item in items:
         if item.get_closest_marker("warm") is not None:
             item.add_marker(skip_warm)
@@ -167,7 +179,9 @@ def fake_system_config() -> dict[str, Any]:
 
 
 @pytest.fixture
-def fake_system_connection(fake_system_config: dict[str, Any]) -> ConfigBackedFakeConnection:
+def fake_system_connection(
+    fake_system_config: dict[str, Any],
+) -> ConfigBackedFakeConnection:
     return ConfigBackedFakeConnection.from_config(deepcopy(fake_system_config))
 
 

@@ -123,7 +123,9 @@ class WAB11SyncClient:
     def _ensure_connected(self) -> WAB11Client:
         """Ensure client is connected and return it."""
         if self._client is None:
-            raise RuntimeError("Client not connected. Call connect() first or use context manager.")
+            raise RuntimeError(
+                "Client not connected. Call connect() first or use context manager."
+            )
         return self._client
 
     # =========================================================================
@@ -239,7 +241,9 @@ class WAB11SyncClient:
             temperature: Temperature in °C
         """
         self._run(
-            self._ensure_connected().set_heating_circuit_setpoint(circuit, level, temperature)
+            self._ensure_connected().set_heating_circuit_setpoint(
+                circuit, level, temperature
+            )
         )
 
     def set_heating_party_pause(
@@ -256,7 +260,9 @@ class WAB11SyncClient:
             mode: "party", "pause", or "auto"
             hours: Duration in hours (0.5-12)
         """
-        self._run(self._ensure_connected().set_heating_party_pause(circuit, mode, hours))
+        self._run(
+            self._ensure_connected().set_heating_party_pause(circuit, mode, hours)
+        )
 
     def set_hot_water_setpoint(self, level: str, temperature: float) -> None:
         """
@@ -311,7 +317,9 @@ class WAB11SyncClient:
             value: Value to write
             confirmed: Confirm critical operations
         """
-        self._run(self._ensure_connected().write_register(register_name, value, confirmed))
+        self._run(
+            self._ensure_connected().write_register(register_name, value, confirmed)
+        )
 
     def __repr__(self) -> str:
         status = "connected" if self.is_connected else "disconnected"

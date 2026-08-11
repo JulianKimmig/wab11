@@ -277,15 +277,26 @@ def test_format_codec_decode_paths() -> None:
     assert FormatCodec.decode(DataFormat.OPERATING_STATE, 99) == 99
     assert FormatCodec.decode(DataFormat.HEATING_MODE, 1) == HeatingCircuitMode.COMFORT
     assert FormatCodec.decode(DataFormat.HEATING_MODE, 99) == 99
-    assert FormatCodec.decode(DataFormat.HEATING_STATUS, 2) == HeatingCircuitStatus.COOLING
+    assert (
+        FormatCodec.decode(DataFormat.HEATING_STATUS, 2) == HeatingCircuitStatus.COOLING
+    )
     assert FormatCodec.decode(DataFormat.HEATING_STATUS, 99) == 99
-    assert FormatCodec.decode(DataFormat.HEATING_CONFIG, 2) == HeatingCircuitConfig.MIXER_CIRCUIT
+    assert (
+        FormatCodec.decode(DataFormat.HEATING_CONFIG, 2)
+        == HeatingCircuitConfig.MIXER_CIRCUIT
+    )
     assert FormatCodec.decode(DataFormat.HEATING_CONFIG, 99) == 99
-    assert FormatCodec.decode(DataFormat.HOT_WATER_STATUS, 3) == HotWaterStatus.PARALLEL_CHARGING
+    assert (
+        FormatCodec.decode(DataFormat.HOT_WATER_STATUS, 3)
+        == HotWaterStatus.PARALLEL_CHARGING
+    )
     assert FormatCodec.decode(DataFormat.HOT_WATER_STATUS, 99) == 99
     assert FormatCodec.decode(DataFormat.HOT_WATER_CONFIG, 8) == HotWaterConfig.PUMP
     assert FormatCodec.decode(DataFormat.HOT_WATER_CONFIG, 99) == 99
-    assert FormatCodec.decode(DataFormat.HEAT_PUMP_CONFIG, 2) == HeatPumpConfig.HEATING_AND_COOLING
+    assert (
+        FormatCodec.decode(DataFormat.HEAT_PUMP_CONFIG, 2)
+        == HeatPumpConfig.HEATING_AND_COOLING
+    )
     assert FormatCodec.decode(DataFormat.HEAT_PUMP_CONFIG, 99) == 99
     assert FormatCodec.decode(DataFormat.REQUEST_TYPE, 3) == RequestType.CONSTANT
     assert FormatCodec.decode(DataFormat.REQUEST_TYPE, 99) == 99
@@ -296,7 +307,10 @@ def test_format_codec_decode_paths() -> None:
 
 
 def test_format_codec_encode_paths() -> None:
-    assert FormatCodec.encode(DataFormat.TEMPERATURE, Temperature.from_celsius(-3.0)) == 65506
+    assert (
+        FormatCodec.encode(DataFormat.TEMPERATURE, Temperature.from_celsius(-3.0))
+        == 65506
+    )
     assert FormatCodec.encode(DataFormat.TEMPERATURE, 21.5) == 215
     assert FormatCodec.encode(DataFormat.BOOL, True) == 1
     assert FormatCodec.encode(DataFormat.SYSTEM_MODE, SystemMode.HEATING) == 1
@@ -307,12 +321,31 @@ def test_format_codec_encode_paths() -> None:
     assert FormatCodec.encode(DataFormat.HEATING_MODE, HeatingCircuitMode.NORMAL) == 2
     assert FormatCodec.encode(DataFormat.HEATING_MODE, 3) == 3
     assert FormatCodec.encode(DataFormat.HEATING_MODE, "standby") == 4
-    assert FormatCodec.encode(DataFormat.HEATING_STATUS, HeatingCircuitStatus.HEATING) == 1
-    assert FormatCodec.encode(DataFormat.HEATING_CONFIG, HeatingCircuitConfig.SETPOINT_PUMP_M1) == 3
-    assert FormatCodec.encode(DataFormat.HOT_WATER_STATUS, HotWaterStatus.REQUEST_BLOCKED) == 4
-    assert FormatCodec.encode(DataFormat.HOT_WATER_CONFIG, HotWaterConfig.DIVERTER_VALVE) == 1
-    assert FormatCodec.encode(DataFormat.HEAT_PUMP_CONFIG, HeatPumpConfig.HEATING_ONLY) == 1
-    assert FormatCodec.encode(DataFormat.REQUEST_TYPE, RequestType.WEATHER_COMPENSATED) == 1
+    assert (
+        FormatCodec.encode(DataFormat.HEATING_STATUS, HeatingCircuitStatus.HEATING) == 1
+    )
+    assert (
+        FormatCodec.encode(
+            DataFormat.HEATING_CONFIG, HeatingCircuitConfig.SETPOINT_PUMP_M1
+        )
+        == 3
+    )
+    assert (
+        FormatCodec.encode(DataFormat.HOT_WATER_STATUS, HotWaterStatus.REQUEST_BLOCKED)
+        == 4
+    )
+    assert (
+        FormatCodec.encode(DataFormat.HOT_WATER_CONFIG, HotWaterConfig.DIVERTER_VALVE)
+        == 1
+    )
+    assert (
+        FormatCodec.encode(DataFormat.HEAT_PUMP_CONFIG, HeatPumpConfig.HEATING_ONLY)
+        == 1
+    )
+    assert (
+        FormatCodec.encode(DataFormat.REQUEST_TYPE, RequestType.WEATHER_COMPENSATED)
+        == 1
+    )
     assert FormatCodec.encode(DataFormat.PERCENTAGE, None) == 0xFFFF
     assert FormatCodec.encode(DataFormat.PERCENTAGE, 42) == 42
     assert FormatCodec.encode(DataFormat.SIGNED_16, -2) == 0xFFFE

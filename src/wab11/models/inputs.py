@@ -179,4 +179,3 @@ class InputsState:
         active = self.get_active_inputs()
         active_str = ", ".join(active) if active else "none"
         return f"InputsState(sg_ready={sg_state}, active=[{active_str}])"
-

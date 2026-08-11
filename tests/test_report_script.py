@@ -41,7 +41,9 @@ def test_parse_args_rejects_out_of_range_heating_circuit_count() -> None:
         report.parse_args(["--host", "127.0.0.1", "--heating-circuits", "6"])
 
 
-def test_create_client_forwards_heating_circuit_count(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_create_client_forwards_heating_circuit_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     report = load_report_module()
     captured: dict[str, object] = {}
 
