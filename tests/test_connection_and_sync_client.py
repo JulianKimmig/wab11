@@ -11,9 +11,18 @@ from wab11.connection import ConnectionConfig, WAB11Connection, _check_pymodbus
 
 
 class FakeResponse:
-    def __init__(self, registers: list[int] | None = None, error: bool = False) -> None:
+    def __init__(
+        self,
+        registers: list[int] | None = None,
+        error: bool = False,
+        *,
+        function_code: int = 132,
+        exception_code: int = 4,
+    ) -> None:
         self.registers = registers or []
         self._error = error
+        self.function_code = function_code
+        self.exception_code = exception_code
 
     def isError(self) -> bool:
         return self._error
@@ -289,6 +298,25 @@ def test_connection_read_and_write_retry_paths(monkeypatch: pytest.MonkeyPatch) 
     assert sleep_calls == [0.5, 1.0, 0.5, 1.0, 0.5, 1.0]
 
 
+def test_connection_preserves_modbus_exception_codes_through_retries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Expose the controller exception code required for circuit detection."""
+    setup_fake_pymodbus(monkeypatch)
+    FakeAsyncModbusClient.input_results = [
+        FakeResponse(error=True, function_code=132, exception_code=10),
+    ]
+    conn = WAB11Connection(ConnectionConfig(host="10.0.0.8", max_retries=1))
+
+    async def exercise() -> None:
+        with pytest.raises(connection_module.ModbusResponseError) as error:
+            await conn.read_input_registers(31501, 5)
+        assert error.value.function_code == 132
+        assert error.value.exception_code == 10
+
+    asyncio.run(exercise())
+
+
 def test_connection_final_retry_failures_and_reconnect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -322,10 +350,11 @@ def test_connection_final_retry_failures_and_reconnect(
             FakeResponse(error=True),
         ]
         with pytest.raises(
-            connection_module.ConnectionError,
-            match="Read failed: Modbus error reading holding register 40001",
-        ):
+            connection_module.ModbusResponseError,
+            match="Modbus exception 4 during reading holding register 40001",
+        ) as error:
             await conn._read_holding_with_retry(40001, 1)
+        assert error.value.exception_code == 4
 
         FakeAsyncModbusClient.write_results = [
             FakeResponse(error=True),
@@ -380,7 +409,7 @@ def test_sync_client_wrapper_behaviour(monkeypatch: pytest.MonkeyPatch) -> None:
         "require_write_confirmation": False,
         "enable_rate_limiting": False,
         "timeout": 4.0,
-        "n_heating_circuits": 5,
+        "n_heating_circuits": None,
     }
     assert sync.is_connected is True
     assert sync.host == "10.0.0.7"

@@ -49,7 +49,7 @@ class WAB11SyncClient:
         require_write_confirmation: bool = True,
         enable_rate_limiting: bool = True,
         timeout: float = 3.0,
-        n_heating_circuits: int = 5,
+        n_heating_circuits: int | None = None,
     ) -> None:
         """
         Initialize synchronous client.
@@ -61,7 +61,8 @@ class WAB11SyncClient:
             require_write_confirmation: Require explicit confirmation for critical writes
             enable_rate_limiting: Enable write rate limiting
             timeout: Connection timeout in seconds
-            n_heating_circuits: Number of heating circuits (default: 5)
+            n_heating_circuits: Explicit number of heating circuits, or None to
+                auto-detect them during the first sync.
         """
         self._host = host
         self._port = port

@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Any, Callable, Optional
 
 from .connection import ConnectionConfig, WAB11Connection
-from .exceptions import ValidationError
+from .exceptions import ModbusResponseError, ValidationError
 from .models.base import (
     HeatingCircuitConfig,
     HeatingCircuitMode,
@@ -107,7 +107,7 @@ class WAB11Client:
         require_write_confirmation: bool = True,
         enable_rate_limiting: bool = True,
         timeout: float = 3.0,
-        n_heating_circuits: int = 5,
+        n_heating_circuits: int | None = None,
     ) -> None:
         """
         Initialize WAB11 client.
@@ -119,9 +119,10 @@ class WAB11Client:
             require_write_confirmation: Require explicit confirmation for critical writes
             enable_rate_limiting: Enable write rate limiting
             timeout: Connection timeout in seconds
-            n_heating_circuits: Number of heating circuits (default: 5)
+            n_heating_circuits: Explicit number of heating circuits, or None to
+                auto-detect sequential circuit blocks during the first sync.
         """
-        if not 1 <= n_heating_circuits <= 5:
+        if n_heating_circuits is not None and not 1 <= n_heating_circuits <= 5:
             raise ValidationError("n_heating_circuits must be 1-5")
 
         self._config = ConnectionConfig(
@@ -141,9 +142,12 @@ class WAB11Client:
 
         # State containers
         self._system = SystemState()
-        self._heating_circuits: list[HeatingCircuit] = [
-            HeatingCircuit(circuit_id=i) for i in range(1, n_heating_circuits + 1)
-        ]
+        self._configured_heating_circuit_count = n_heating_circuits
+        self._heating_circuits: list[HeatingCircuit] = []
+        if n_heating_circuits is not None:
+            self._heating_circuits = [
+                HeatingCircuit(circuit_id=i) for i in range(1, n_heating_circuits + 1)
+            ]
         self._hot_water = HotWaterState()
         self._heat_pump = HeatPumpState()
         self._secondary_heat = SecondaryHeatSourceState()
@@ -688,8 +692,28 @@ class WAB11Client:
 
     async def _sync_heating_circuits(self) -> None:
         """Sync all heating circuits."""
+        if self._configured_heating_circuit_count is None:
+            await self._auto_detect_heating_circuits()
+            return
+
         for i, hk in enumerate(self._heating_circuits, start=1):
             await self._sync_heating_circuit(i, hk)
+
+    async def _auto_detect_heating_circuits(self) -> None:
+        """Discover and sync sequential heating-circuit register blocks."""
+        detected: list[HeatingCircuit] = []
+        for circuit_id in range(1, 6):
+            circuit = HeatingCircuit(circuit_id=circuit_id)
+            try:
+                await self._sync_heating_circuit(circuit_id, circuit)
+            except ModbusResponseError as error:
+                if circuit_id > 1 and error.exception_code == 10:
+                    break
+                raise
+            detected.append(circuit)
+
+        self._heating_circuits = detected
+        self._configured_heating_circuit_count = len(detected)
 
     async def _sync_heating_circuit(self, circuit_id: int, hk: HeatingCircuit) -> None:
         """Sync a single heating circuit."""

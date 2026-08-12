@@ -12,7 +12,7 @@ import logging
 from dataclasses import dataclass
 from typing import List, Optional
 
-from .exceptions import ConnectionError, TimeoutError
+from .exceptions import ConnectionError, ModbusResponseError, TimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +131,7 @@ class WAB11Connection:
                 timeout=self._config.timeout,
             )
             # Set the slave/unit ID for all operations
-            self._client.slave = self._config.unit_id
+            self._client.slave = self._config.unit_id  # type: ignore[attr-defined]
 
             try:
                 connected = await self._client.connect()
@@ -297,8 +297,10 @@ class WAB11Connection:
                 )
 
                 if response.isError():
-                    raise ConnectionError(
-                        f"Modbus error reading input register {address}: {response}"
+                    raise ModbusResponseError(
+                        function_code=response.function_code,
+                        exception_code=response.exception_code,
+                        operation=f"reading input register {address}",
                     )
 
                 return list(response.registers)
@@ -306,6 +308,10 @@ class WAB11Connection:
             except asyncio.TimeoutError as e:
                 last_error = TimeoutError(f"Timeout reading input register {address}")
                 logger.warning(f"Read timeout (attempt {attempt + 1}): {e}")
+
+            except ModbusResponseError as e:
+                last_error = e
+                logger.warning("Modbus exception (attempt %s): %s", attempt + 1, e)
 
             except ModbusException as e:
                 last_error = ConnectionError(f"Modbus error: {e}")
@@ -339,8 +345,10 @@ class WAB11Connection:
                 )
 
                 if response.isError():
-                    raise ConnectionError(
-                        f"Modbus error reading holding register {address}: {response}"
+                    raise ModbusResponseError(
+                        function_code=response.function_code,
+                        exception_code=response.exception_code,
+                        operation=f"reading holding register {address}",
                     )
 
                 return list(response.registers)
@@ -348,6 +356,10 @@ class WAB11Connection:
             except asyncio.TimeoutError as e:
                 last_error = TimeoutError(f"Timeout reading holding register {address}")
                 logger.warning(f"Read timeout (attempt {attempt + 1}): {e}")
+
+            except ModbusResponseError as e:
+                last_error = e
+                logger.warning("Modbus exception (attempt %s): %s", attempt + 1, e)
 
             except ModbusException as e:
                 last_error = ConnectionError(f"Modbus error: {e}")
