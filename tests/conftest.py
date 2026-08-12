@@ -146,8 +146,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         "--warm-heating-circuits",
         action="store",
         type=int,
-        default=_env_int("WAB11_TEST_HEATING_CIRCUITS", 5),
-        help="Number of heating circuits exposed by the real WAB11 device.",
+        default=(
+            int(os.environ["WAB11_TEST_HEATING_CIRCUITS"])
+            if "WAB11_TEST_HEATING_CIRCUITS" in os.environ
+            else None
+        ),
+        help="Explicit heating-circuit count (1-5); omit to auto-detect.",
     )
 
 
@@ -220,7 +224,7 @@ def warm_device_settings(pytestconfig: pytest.Config) -> dict[str, Any]:
         )
 
     n_heating_circuits = pytestconfig.getoption("--warm-heating-circuits")
-    if not 1 <= n_heating_circuits <= 5:
+    if n_heating_circuits is not None and not 1 <= n_heating_circuits <= 5:
         raise pytest.UsageError("--warm-heating-circuits must be between 1 and 5")
 
     return {

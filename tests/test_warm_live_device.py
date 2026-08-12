@@ -44,9 +44,7 @@ def test_live_device_reads_all_configured_registers_without_writes(
 
             read_failures: list[str] = []
             successful_reads = 0
-            for register_name in _warm_register_names(
-                warm_device_settings["n_heating_circuits"]
-            ):
+            for register_name in _warm_register_names(len(client.heating_circuits)):
                 try:
                     await client.read_register(register_name)
                     successful_reads += 1

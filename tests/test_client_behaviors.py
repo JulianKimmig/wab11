@@ -18,6 +18,7 @@ from wab11 import (
     ValidationError,
     WAB11Client,
 )
+from wab11.exceptions import ModbusResponseError
 from wab11.models.heating import PartyPauseCode
 from wab11.registers.definitions import ALL_REGISTERS
 from wab11.registers.formats import FormatCodec
@@ -90,6 +91,81 @@ class RecordingLimiter:
 async def test_client_rejects_invalid_heating_circuit_count() -> None:
     with pytest.raises(ValidationError, match="n_heating_circuits must be 1-5"):
         WAB11Client("127.0.0.1", n_heating_circuits=0)
+
+
+@pytest.mark.asyncio
+async def test_client_auto_detects_heating_circuit_count(make_test_client) -> None:
+    """Stop auto-detection only at the controller's absent-circuit response."""
+
+    class AutoDetectConnection(ExactRegisterConnection):
+        async def read_input_registers(self, address: int, count: int) -> list[int]:
+            if address == 31301:
+                raise ModbusResponseError(
+                    function_code=132,
+                    exception_code=10,
+                    operation="reading input register 31301",
+                )
+            return await super().read_input_registers(address, count)
+
+    connection = AutoDetectConnection(
+        input_blocks={
+            (31101, 5): [200, 201, 50, 300, 301],
+            (31201, 5): [210, 211, 51, 310, 311],
+        },
+        holding_blocks={
+            (41101, 12): [1, 1, 200, 190, 170, 0, 0, 0, 0, 0, 0, 0],
+            (41201, 12): [1, 1, 210, 200, 180, 0, 0, 0, 0, 0, 0, 0],
+        },
+    )
+    client = make_test_client(connection)
+
+    await client._sync_heating_circuits()
+
+    assert [circuit.circuit_id for circuit in client.heating_circuits] == [1, 2]
+
+
+@pytest.mark.asyncio
+async def test_client_auto_detection_propagates_other_modbus_errors(
+    make_test_client,
+) -> None:
+    """Do not misclassify communication failures as the end of the circuit list."""
+
+    class FailingDetectionConnection(ExactRegisterConnection):
+        async def read_input_registers(self, address: int, count: int) -> list[int]:
+            raise ModbusResponseError(
+                function_code=132,
+                exception_code=4,
+                operation=f"reading input register {address}",
+            )
+
+    client = make_test_client(FailingDetectionConnection())
+
+    with pytest.raises(ModbusResponseError) as error:
+        await client._sync_heating_circuits()
+
+    assert error.value.exception_code == 4
+
+
+@pytest.mark.asyncio
+async def test_client_requires_first_heating_circuit_during_auto_detection(
+    make_test_client,
+) -> None:
+    """Propagate an absent-circuit response when circuit one is unavailable."""
+
+    class NoFirstCircuitConnection(ExactRegisterConnection):
+        async def read_input_registers(self, address: int, count: int) -> list[int]:
+            raise ModbusResponseError(
+                function_code=132,
+                exception_code=10,
+                operation=f"reading input register {address}",
+            )
+
+    client = make_test_client(NoFirstCircuitConnection())
+
+    with pytest.raises(ModbusResponseError) as error:
+        await client._sync_heating_circuits()
+
+    assert error.value.exception_code == 10
 
 
 @pytest.mark.asyncio

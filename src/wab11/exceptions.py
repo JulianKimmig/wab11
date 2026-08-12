@@ -19,6 +19,31 @@ class ConnectionError(WAB11Error):
     pass
 
 
+class ModbusResponseError(ConnectionError):
+    """Raised when a controller returns a Modbus exception response.
+
+    Args:
+        function_code: Modbus function code returned by the controller.
+        exception_code: Modbus exception code returned by the controller.
+        operation: Human-readable description of the failed operation.
+    """
+
+    def __init__(
+        self,
+        *,
+        function_code: int,
+        exception_code: int,
+        operation: str,
+    ) -> None:
+        self.function_code = function_code
+        self.exception_code = exception_code
+        self.operation = operation
+        super().__init__(
+            f"Modbus exception {exception_code} during {operation} "
+            f"(function code {function_code})"
+        )
+
+
 class TimeoutError(ConnectionError):
     """Raised when a Modbus operation times out."""
 

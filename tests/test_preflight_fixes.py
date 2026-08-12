@@ -112,12 +112,12 @@ def make_client(
     return client
 
 
-def test_client_defaults_to_five_heating_circuits(
+def test_client_defaults_to_auto_detecting_heating_circuits(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     client = make_client(monkeypatch=monkeypatch)
 
-    assert [hk.circuit_id for hk in client.heating_circuits] == [1, 2, 3, 4, 5]
+    assert client.heating_circuits == []
 
 
 @pytest.mark.parametrize(
