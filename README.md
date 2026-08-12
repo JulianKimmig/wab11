@@ -272,9 +272,11 @@ WAB11 device:
 ```bash
 pytest tests/test_warm_live_device.py \
   --run-warm \
-  --warm-host <ip-or-host> \
-  --warm-heating-circuits <1-5>
+  --warm-host <ip-or-host>
 ```
+
+Heating circuits are auto-detected when the option is omitted. Pass
+`--warm-heating-circuits <1-5>` only to override detection manually.
 
 You can also provide the live-device settings through environment
 variables:
