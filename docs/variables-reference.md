@@ -217,6 +217,21 @@ Each `EnergyPeriod` also derives `total_recent`. `EnergyStatistics` derives
 `heating_percentage_today`, and `hot_water_percentage_today`; percentages are
 `None` when total energy today is zero.
 
+HACS additionally derives `sensor.estimated_total_power` when energy sensors
+are enabled. This is not a WAB11 register or base-library model field. A
+per-config-entry estimator uses only `energy_total_today` and
+`energy_total_yesterday` to calculate an unweighted average in W over a bounded
+history of up to four recent energy-change boundaries; it does not use
+`heat_pump_power_request`. The value is unavailable before a positive interval,
+holds across unchanged counter samples, and bridges one midnight reset using
+the yesterday total. Invalid counters, same-day decreases, non-increasing
+timestamps, or multi-day gaps clear the estimate; valid discontinuities
+rebaseline immediately, while an invalid counter waits for the next valid
+sample. The Home
+Assistant entity has power/measurement metadata and `force_update=true`; its
+contract and implementation are linked from the HACS
+[`Home Assistant contract`](../submodules/hacs-wab11/.docs/contracts/home-assistant.md).
+
 ## Complete decoded model surface
 
 The raw tables map register-backed fields individually. This table accounts for
@@ -335,7 +350,8 @@ With `enable_advanced_sensors=true`, HACS adds 21 heat-pump sensors:
 With `enable_energy_sensors=true` (default), all 16 kWh combinations named
 `CATEGORY_energy_PERIOD` are created. `CATEGORY` is `total`, `heating`,
 `hot_water`, or `cooling`; `PERIOD` is `today`, `yesterday`, `month`, or
-`year`.
+`year`. The same option creates derived `estimated_total_power` as described in
+the energy-statistics section above.
 
 HACS intentionally does not create circuit-status, hot-water-status/charging,
 or input-configuration entities. The corresponding model fields are not
