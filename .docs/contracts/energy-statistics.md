@@ -131,10 +131,19 @@ schema.
 
 Usage and the full register surface are documented in
 [`README.md`](../../README.md) and
-[`variables-reference.md`](../../docs/variables-reference.md). The Home
-Assistant integration, its existing entity identities and estimator, and
-InfluxDB configuration are separate consumers requiring a later integration
-change. Existing thermal history must not be relabeled as electrical energy.
+[`variables-reference.md`](../../docs/variables-reference.md). The HACS integration
+consumes published `wab11==0.3.0` and exposes four distinct
+`electrical_energy_<period>` entities through the existing energy coordinator
+and energy-sensors option. It treats `None` as unavailable and zero as valid,
+preserves the 16 legacy entity identities and readings, and keeps the power
+estimator on legacy total-energy counters. The
+[`HACS integration documentation`](../../submodules/hacs-wab11/README.md#known-limitations)
+describes availability, precision, and statistics metadata. HACS coverage is in
+[`test_electrical_energy.py`](../../submodules/hacs-wab11/tests/test_electrical_energy.py)
+and
+[`test_electrical_availability.py`](../../submodules/hacs-wab11/tests/test_electrical_availability.py).
+Live Home Assistant and InfluxDB deployment remain separate operational work.
+Existing thermal history must not be relabeled as electrical energy.
 
 Behavioral evidence is maintained in
 [`test_electrical_energy.py`](../../tests/test_electrical_energy.py),

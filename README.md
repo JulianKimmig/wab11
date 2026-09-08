@@ -169,7 +169,13 @@ reports show unavailable data explicitly and CSV leaves those values empty.
 Consumers with strict serialized schemas must accept the additive field.
 Start a new CSV file when upgrading an existing report with the old columns;
 appending to a mismatched header raises an error before modifying the file.
-Home Assistant entities and InfluxDB deployment require a separate update.
+The HACS integration exposes separate `electrical_energy_today`,
+`electrical_energy_yesterday`, `electrical_energy_month`, and
+`electrical_energy_year` sensors when energy sensors are enabled. Legacy energy
+entities and the legacy total-based power estimator remain unchanged. See the
+[HACS integration documentation](submodules/hacs-wab11/README.md#known-limitations)
+for availability and statistics metadata. Live Home Assistant and InfluxDB
+deployment remain separate operational work.
 
 ## Security
 

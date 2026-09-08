@@ -224,10 +224,19 @@ including the block call `read_input_registers(36701, 4)`:
 
 | Key | Address | Model when available | HACS |
 | --- | ---: | --- | --- |
-| `energy_electrical_today` | 36701 | `energy.electrical.today` | Separate integration update required |
-| `energy_electrical_yesterday` | 36702 | `energy.electrical.yesterday` | Separate integration update required |
-| `energy_electrical_month` | 36703 | `energy.electrical.month` | Separate integration update required |
-| `energy_electrical_year` | 36704 | `energy.electrical.year` | Separate integration update required |
+| `energy_electrical_today` | 36701 | `energy.electrical.today` | `sensor.electrical_energy_today` when energy enabled |
+| `energy_electrical_yesterday` | 36702 | `energy.electrical.yesterday` | `sensor.electrical_energy_yesterday` |
+| `energy_electrical_month` | 36703 | `energy.electrical.month` | `sensor.electrical_energy_month` |
+| `energy_electrical_year` | 36704 | `energy.electrical.year` | `sensor.electrical_energy_year` |
+
+HACS consumes published `wab11==0.3.0`. Electrical sensors use the existing
+energy coordinator and default 300-second interval, device class `ENERGY`,
+kWh, display precision zero, and `force_update=false`. Today/month/year use
+`TOTAL_INCREASING`; yesterday has no state class because it is a completed-day
+aggregate. A missing electrical group or failed coordinator makes these
+sensors unavailable; numeric zero is valid. Successful later polls restore
+the same entities. Legacy entity identities, values, and metadata remain
+unchanged; live deployment and history migration are separate concerns.
 
 `EnergyStatistics.electrical` is appended after the four legacy fields and
 defaults to `None`. It is a complete `EnergyPeriod` only after all four values
@@ -274,10 +283,10 @@ start a new CSV with the expanded columns after upgrading.
 
 HACS additionally derives `sensor.estimated_total_power` when energy sensors
 are enabled. This is not a WAB11 register or base-library model field. A
-per-config-entry estimator uses only `energy_total_today` and
-`energy_total_yesterday` to calculate an unweighted average in W over a bounded
+per-config-entry estimator uses only `energy.total.today` and
+`energy.total.yesterday` to calculate an unweighted average in W over a bounded
 history of up to four recent energy-change boundaries; it does not use
-`heat_pump_power_request`. The value is unavailable before a positive interval,
+electrical counters or `heat_pump_power_request`. The value is unavailable before a positive interval,
 holds across unchanged counter samples, and bridges one midnight reset using
 the yesterday total. Invalid counters, same-day decreases, non-increasing
 timestamps, or multi-day gaps clear the estimate; valid discontinuities
@@ -405,7 +414,9 @@ With `enable_advanced_sensors=true`, HACS adds 21 heat-pump sensors:
 With `enable_energy_sensors=true` (default), all 16 kWh combinations named
 `CATEGORY_energy_PERIOD` are created. `CATEGORY` is `total`, `heating`,
 `hot_water`, or `cooling`; `PERIOD` is `today`, `yesterday`, `month`, or
-`year`. The same option creates derived `estimated_total_power` as described in
+`year`. Four additional `electrical_energy_PERIOD` sensors expose the optional
+electrical group with the availability and metadata described above. The same
+option creates derived `estimated_total_power` as described in
 the energy-statistics section above.
 
 HACS intentionally does not create circuit-status, hot-water-status/charging,
@@ -487,6 +498,8 @@ configuration—also serialize, but are not evidence of controller state.
 - HACS entity mapping and actions:
   [`sensor.py`](../submodules/hacs-wab11/custom_components/hacs_wab11/sensor.py),
   [`sensor_descriptions.py`](../submodules/hacs-wab11/custom_components/hacs_wab11/sensor_descriptions.py),
+  [`sensor_description.py`](../submodules/hacs-wab11/custom_components/hacs_wab11/sensor_description.py),
+  [`sensor_energy_descriptions.py`](../submodules/hacs-wab11/custom_components/hacs_wab11/sensor_energy_descriptions.py),
   [`sensor_circuit_descriptions.py`](../submodules/hacs-wab11/custom_components/hacs_wab11/sensor_circuit_descriptions.py),
   [`binary_sensor.py`](../submodules/hacs-wab11/custom_components/hacs_wab11/binary_sensor.py),
   [`select.py`](../submodules/hacs-wab11/custom_components/hacs_wab11/select.py),
@@ -495,5 +508,7 @@ configuration—also serialize, but are not evidence of controller state.
   and [`__init__.py`](../submodules/hacs-wab11/custom_components/hacs_wab11/__init__.py),
   covered by
   [`test_entities.py`](../submodules/hacs-wab11/tests/test_entities.py),
+  [`test_electrical_energy.py`](../submodules/hacs-wab11/tests/test_electrical_energy.py),
+  [`test_electrical_availability.py`](../submodules/hacs-wab11/tests/test_electrical_availability.py),
   [`test_services.py`](../submodules/hacs-wab11/tests/test_services.py), and
   [`test_diagnostics.py`](../submodules/hacs-wab11/tests/test_diagnostics.py).
