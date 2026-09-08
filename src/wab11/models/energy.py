@@ -1,8 +1,9 @@
 """
 Energy statistics models for the WAB11.
 
-Contains energy consumption data for heating, cooling, and hot water
-operations, mirroring the statistics shown in the controller's menu.
+Legacy groups have evidence indicating thermal output; electrical input is a
+separate, empirically observed optional group. Controller-display validation
+remains necessary; see .docs/contracts/energy-statistics.md for evidence.
 """
 
 from __future__ import annotations
@@ -13,15 +14,16 @@ from dataclasses import dataclass, field
 @dataclass
 class EnergyPeriod:
     """
-    Energy consumption for a specific time period.
+    Reported energy for overlapping calendar periods.
 
-    All values are in kWh.
+    All values are in kWh. Register resolution is integer kWh; float storage
+    does not imply fractional precision. Do not sum all four periods.
 
     Attributes:
-        today: Energy consumed today
-        yesterday: Energy consumed yesterday
-        month: Energy consumed this calendar month
-        year: Energy consumed this calendar year
+        today: Energy reported today
+        yesterday: Energy reported yesterday
+        month: Energy reported this calendar month
+        year: Energy reported this calendar year
     """
 
     today: float = 0.0
@@ -42,39 +44,45 @@ class EnergyStatistics:
 
     Input registers: 36xxx
 
-    These values correspond to the statistics shown in the
-    controller's Info → Statistik menu.
+    Existing groups retain their legacy meanings, with evidence indicating
+    thermal output. Electrical input uses empirical registers 36701-36704;
+    labels, measurement boundary and firmware compatibility need validation.
 
     Attributes:
         total: Total energy (heating + hot water + cooling)
-        heating: Energy used for space heating
-        hot_water: Energy used for domestic hot water
-        cooling: Energy used for cooling
+        heating: Legacy space-heating energy
+        hot_water: Legacy domestic-hot-water energy
+        cooling: Legacy cooling energy
+        electrical: Separate electrical input, or None before a successful
+            energy sync, when unsupported, or after the latest energy sync
+            fails. A complete zero-valued period is available data. Consumers
+            remain responsible for freshness after polling stops.
     """
 
     total: EnergyPeriod = field(default_factory=EnergyPeriod)
     heating: EnergyPeriod = field(default_factory=EnergyPeriod)
     hot_water: EnergyPeriod = field(default_factory=EnergyPeriod)
     cooling: EnergyPeriod = field(default_factory=EnergyPeriod)
+    electrical: EnergyPeriod | None = None
 
     @property
     def today_total(self) -> float:
-        """Get total energy consumed today in kWh."""
+        """Return today's legacy total energy in kWh."""
         return self.total.today
 
     @property
     def yesterday_total(self) -> float:
-        """Get total energy consumed yesterday in kWh."""
+        """Return yesterday's legacy total energy in kWh."""
         return self.total.yesterday
 
     @property
     def month_total(self) -> float:
-        """Get total energy consumed this month in kWh."""
+        """Return this month's legacy total energy in kWh."""
         return self.total.month
 
     @property
     def year_total(self) -> float:
-        """Get total energy consumed this year in kWh."""
+        """Return this year's legacy total energy in kWh."""
         return self.total.year
 
     @property

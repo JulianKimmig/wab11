@@ -13,6 +13,8 @@ under
 
 The library's circuit-discovery rules are specified separately in the
 [`heating-circuit discovery contract`](../.docs/contracts/heating-circuit-discovery.md).
+Energy availability, empirical mapping evidence, and serialization are specified
+in the [`energy statistics contract`](../.docs/contracts/energy-statistics.md).
 The integration's configuration, entity, service, and diagnostics guarantees
 are specified in its
 [`Home Assistant contract`](../submodules/hacs-wab11/.docs/contracts/home-assistant.md).
@@ -56,7 +58,7 @@ enabled. All writes are rate-limited by default and recorded in the audit log.
 
 ## Complete raw register catalog
 
-The catalog contains **166 keys**: 81 fixed keys plus 17 circuit templates
+The catalog contains **170 keys**: 85 fixed keys plus 17 circuit templates
 repeated for circuits 1–5. Of these, 84 are marked writable (55 are the 11
 writable circuit templates repeated five times).
 
@@ -201,9 +203,14 @@ their model values are defaults rather than controller observations.
 
 ### Energy statistics
 
-All 16 keys are read-only `u16` values in kWh. `sync_energy()` converts them to
-`float` model fields. Replace `CATEGORY` with `total`, `heating`, `hot_water`,
-or `cooling`; each row therefore names four literal catalog keys.
+All 20 keys are read-only `u16` input values in kWh, with four optional at
+runtime. `sync_energy()` converts integer readings to `float` model fields:
+raw `2` means `2.0 kWh`, not fractional-kWh precision. Zero and 65535 are
+valid energy values, without invalid-sentinel substitution.
+
+The 16 legacy keys retain their meanings and values; evidence indicates they
+measure generated thermal energy. Replace `CATEGORY` with `total`, `heating`,
+`hot_water`, or `cooling`; each row names four literal catalog keys.
 
 | Key template | Addresses by category | Model | HACS |
 | --- | --- | --- | --- |
@@ -212,10 +219,58 @@ or `cooling`; each row therefore names four literal catalog keys.
 | `energy_CATEGORY_month` | 36103; 36203; 36303; 36403 | `.month` | HACS `sensor.CATEGORY_energy_month` |
 | `energy_CATEGORY_year` | 36104; 36204; 36304; 36404 | `.year` | HACS `sensor.CATEGORY_energy_year` |
 
+The optional electrical group uses function code 4 with full addresses,
+including the block call `read_input_registers(36701, 4)`:
+
+| Key | Address | Model when available | HACS |
+| --- | ---: | --- | --- |
+| `energy_electrical_today` | 36701 | `energy.electrical.today` | Separate integration update required |
+| `energy_electrical_yesterday` | 36702 | `energy.electrical.yesterday` | Separate integration update required |
+| `energy_electrical_month` | 36703 | `energy.electrical.month` | Separate integration update required |
+| `energy_electrical_year` | 36704 | `energy.electrical.year` | Separate integration update required |
+
+`EnergyStatistics.electrical` is appended after the four legacy fields and
+defaults to `None`. It is a complete `EnergyPeriod` only after all four values
+have been read and validated. Unsupported optional addresses (exception 2)
+leave legacy energy usable and electrical data `None`; other errors propagate.
+Any failed energy synchronization clears previously available electrical data,
+and every later energy synchronization retries the optional block. `None`
+means unavailable, not zero. Data remaining after polling stops still needs an
+application-level freshness check.
+
+The high-level model and generic named reads now both expose electrical
+energy. Previously the candidate addresses could only be accessed through
+generic connection-level register reads. Generic `read_register()` neither
+updates the model nor suppresses optional-block errors. Normal `sync()` does
+not populate energy; use `sync_energy()` or background polling with its
+default `energy_interval=300` seconds.
+
+The mapping is empirical and may depend on firmware. The handoff documents a
+WBB firsthand report and a successful WAB accessibility probe; the inspected
+manufacturer Modbus list does not document these electrical addresses.
+Controller-display comparison, exact model/firmware, and whether compressor,
+auxiliary heating, pumps, and controller consumption are included remain
+unverified. See the [contract's sources and limitations](../.docs/contracts/energy-statistics.md#evidence-and-compatibility-limits).
+
+Calendar-period resets are expected, but precise rollover and overflow
+behavior needs hardware validation. Today, yesterday, month, and year overlap;
+do not sum all periods or infer a daily history from month/year values. These
+counters do not provide instantaneous electrical power, fractional-energy
+reconstruction, or automatic COP. Neither 33103's percentage request nor
+40002's writable W-valued request/setpoint is measured electrical input power.
+
 Each `EnergyPeriod` also derives `total_recent`. `EnergyStatistics` derives
 `today_total`, `yesterday_total`, `month_total`, `year_total`,
 `heating_percentage_today`, and `hot_water_percentage_today`; percentages are
 `None` when total energy today is zero.
+
+Reports serialize an additive `energy.electrical` object containing the four
+numeric periods, or JSON `null` when unavailable. Text reports identify
+unavailability and CSV leaves unavailable electrical fields empty. Consumers
+with strict schemas must accept the new field and preserve the difference
+between zero and missing data.
+CSV append rejects an old or mismatched header without modifying the file;
+start a new CSV with the expanded columns after upgrading.
 
 HACS additionally derives `sensor.estimated_total_power` when energy sensors
 are enabled. This is not a WAB11 register or base-library model field. A
@@ -247,7 +302,7 @@ the remaining metadata and every derived field/property.
 | `SecondaryHeatSourceState` | `is_wez2_configured`, `is_wez2_active`, `is_e1_configured`, `is_e2_configured`, `is_e1_active`, `is_e2_active`, `any_backup_active`, `total_operating_hours`; `should_activate_backup(outdoor_temp)`, `should_lock_heat_pump(outdoor_temp)` | Backup configuration/activity aggregation and temperature-threshold helpers |
 | `InputsState` | `sg_ready_state`, `is_evu_lock`, `is_sg_maximum`, `is_sg_recommended`, `is_sg_normal`, `any_input_active`; `get_active_inputs()` | Combined two-bit SG state and input aggregation |
 | `EnergyPeriod` | `total_recent` | Today plus yesterday |
-| `EnergyStatistics` | `today_total`, `yesterday_total`, `month_total`, `year_total`, `heating_percentage_today`, `hot_water_percentage_today` | Aliases for total-period values and today's shares |
+| `EnergyStatistics` | `today_total`, `yesterday_total`, `month_total`, `year_total`, `heating_percentage_today`, `hot_water_percentage_today` | Aliases and today's shares retain their legacy total-period meaning; none redirects to optional electrical input |
 | `WAB11Client` | `host`, `is_connected`, `is_polling`, `last_sync`, `audit_log` | Connection/polling metadata, most recent full-sync time, and write audit history |
 
 ## Complete enum values
@@ -272,8 +327,8 @@ the remaining metadata and every derived field/property.
 | API | Scope | Notes |
 | --- | --- | --- |
 | `sync()` | Records system, selected/detected heating circuits, hot water, heat pump, input statuses, and secondary heat | Does not update energy or input-configuration holdings. Circuit discovery details are in the linked contract. |
-| `sync_energy()` | Records all 16 energy values | Kept separate for lower-frequency polling. |
-| `read_register(key)` | Reads any of the 166 raw catalog keys | Uses the catalog codec and returns a decoded scalar/value object; it does not update the state model. |
+| `sync_energy()` | Records 16 mandatory legacy and four optional electrical energy values | Separate lower-frequency polling; optional exception 2 leaves electrical data unavailable, other errors propagate. |
+| `read_register(key)` | Reads any of the 170 raw catalog keys | Uses the catalog codec and returns a decoded scalar/value object; it does not update the state model or suppress optional-register errors. |
 | `write_register(key, value, confirmed=False)` | Writes any of the 84 catalog keys marked writable | Validates writability/type/range/critical confirmation, rate-limits, audits, and emits a local change event. Prefer high-level methods; generic writes do not synchronize the corresponding model field. |
 | `set_system_mode(mode, confirmed=False)` | `system_mode` | Critical write; updates `system.system_mode`. |
 | `set_heating_circuit_mode(N, mode)` | `hkN_mode` | N must exist in the selected/detected collection; updates `.mode`. |
@@ -415,6 +470,15 @@ configuration—also serialize, but are not evidence of controller state.
   covered by [`test_client_behaviors.py`](../tests/test_client_behaviors.py),
   [`test_preflight_fixes.py`](../tests/test_preflight_fixes.py), and
   [`test_fake_system_fixture.py`](../tests/test_fake_system_fixture.py).
+- Optional electrical energy: [`energy_sync.py`](../src/wab11/energy_sync.py)
+  and [`models/energy.py`](../src/wab11/models/energy.py), covered by
+  [`test_electrical_energy.py`](../tests/test_electrical_energy.py) and
+  [`test_electrical_integration.py`](../tests/test_electrical_integration.py).
+- Report serialization: [`energy_reporting.py`](../src/wab11/energy_reporting.py)
+  and [`scripts/report.py`](../scripts/report.py), covered
+  by [`test_electrical_integration.py`](../tests/test_electrical_integration.py);
+  report CLI coverage remains in
+  [`test_report_script.py`](../tests/test_report_script.py).
 - Write validation: [`validator.py`](../src/wab11/security/validator.py),
   covered by [`test_security_helpers.py`](../tests/test_security_helpers.py).
 - Synchronous parity: [`sync_client.py`](../src/wab11/sync_client.py), covered

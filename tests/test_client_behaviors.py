@@ -493,6 +493,7 @@ async def test_client_polling_lifecycle_updates_state_and_disconnects_cleanly(
     assert "polling" in repr(client)
     assert client.last_sync is not None
     assert client.energy.total.year == 1240.0
+    assert client.energy.electrical.yesterday == 2.0
 
     await client.disconnect()
     await client.stop_polling()

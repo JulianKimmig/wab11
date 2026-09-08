@@ -26,6 +26,9 @@ def test_fake_system_fixture_supports_full_sync(
     assert client.heating_circuits[2].config == HeatingCircuitConfig.NOT_CONFIGURED
     assert client.secondary_heat.limit_temp.celsius == -12.0
     assert client.energy.total.year == 1240.0
+    assert client.energy.electrical.today == 0.0
+    assert client.energy.electrical.yesterday == 2.0
+    assert client.energy.electrical.year == 1916.0
 
 
 def test_fake_system_fixture_supports_every_defined_register_read(
@@ -49,6 +52,7 @@ def test_fake_system_fixture_supports_every_defined_register_read(
     assert set(values) == set(ALL_REGISTERS)
     assert values["system_mode"] == SystemMode.HEATING
     assert values["energy_total_year"] == 1240
+    assert values["energy_electrical_year"] == 1916
     assert values["hk3_config"] == HeatingCircuitConfig.NOT_CONFIGURED
 
 

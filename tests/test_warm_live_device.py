@@ -5,6 +5,7 @@ import asyncio
 import pytest
 
 from wab11 import WAB11Client
+from wab11.exceptions import ModbusResponseError
 from wab11.registers.definitions import ALL_REGISTERS
 
 
@@ -48,6 +49,14 @@ def test_live_device_reads_all_configured_registers_without_writes(
                 try:
                     await client.read_register(register_name)
                     successful_reads += 1
+                except (
+                    ModbusResponseError
+                ) as exc:  # pragma: no cover - hardware-only path
+                    if not (
+                        register_name.startswith("energy_electrical_")
+                        and exc.exception_code == 2
+                    ):
+                        read_failures.append(f"{register_name}: {exc}")
                 except Exception as exc:  # pragma: no cover - hardware-only path
                     read_failures.append(f"{register_name}: {exc}")
 

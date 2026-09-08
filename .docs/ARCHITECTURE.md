@@ -35,6 +35,20 @@ runs asynchronous operations on its owned event loop. Consequently, explicit
 and automatic heating-circuit sizing have the same meaning in both client
 interfaces.
 
+Energy synchronization is isolated in
+[`energy_sync.py`](../src/wab11/energy_sync.py), using definitions owned by
+[`registers/definitions.py`](../src/wab11/registers/definitions.py) and the existing
+transport. The four mandatory legacy groups and optional electrical group
+share `sync_energy()` and its existing 300-second default polling interval;
+normal `sync()` does not populate them. Optional-register handling belongs
+to this synchronization layer, while generic reads preserve transport errors.
+[`energy_reporting.py`](../src/wab11/energy_reporting.py) converts the model
+to JSON-compatible data, CSV columns, and text rows for
+[`scripts/report.py`](../scripts/report.py), preserving unavailable data.
+The additive model, absence/error semantics, report schema, and empirical
+compatibility limits are defined in the
+[`energy statistics contract`](contracts/energy-statistics.md).
+
 The module-to-test relationships are recorded in
 [`code-relationships.md`](code-relationships.md), and the authoritative test
 commands and automation are recorded in

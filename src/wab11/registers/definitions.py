@@ -1,8 +1,8 @@
 """
 Complete Modbus register definitions for the WAB11 controller.
 
-This module contains all register definitions extracted from the
-WAB11 Modbus documentation, organized by functional area.
+This module contains documented WAB11 registers and explicitly identified
+empirical additions, organized by functional area.
 
 Register addressing:
 - Input registers: 30xxx (read-only)
@@ -1002,6 +1002,41 @@ ENERGY_REGISTERS: dict[str, RegisterDef] = {
         reg_type=RegisterType.INPUT,
         fmt=DataFormat.UNSIGNED_16,
         description="Kühlen Energie Jahr",
+        unit="kWh",
+    ),
+    # Empirical WBB mapping: OStrama/weishaupt_modbus discussion 179.
+    # WAB block access observed 2026-09-08; potentially firmware-dependent.
+    # https://github.com/OStrama/weishaupt_modbus/discussions/179
+    "energy_electrical_today": RegisterDef(
+        name="energy_electrical_today",
+        address=36701,
+        reg_type=RegisterType.INPUT,
+        fmt=DataFormat.UNSIGNED_16,
+        description="Electrical energy today",
+        unit="kWh",
+    ),
+    "energy_electrical_yesterday": RegisterDef(
+        name="energy_electrical_yesterday",
+        address=36702,
+        reg_type=RegisterType.INPUT,
+        fmt=DataFormat.UNSIGNED_16,
+        description="Electrical energy yesterday",
+        unit="kWh",
+    ),
+    "energy_electrical_month": RegisterDef(
+        name="energy_electrical_month",
+        address=36703,
+        reg_type=RegisterType.INPUT,
+        fmt=DataFormat.UNSIGNED_16,
+        description="Electrical energy this month",
+        unit="kWh",
+    ),
+    "energy_electrical_year": RegisterDef(
+        name="energy_electrical_year",
+        address=36704,
+        reg_type=RegisterType.INPUT,
+        fmt=DataFormat.UNSIGNED_16,
+        description="Electrical energy this year",
         unit="kWh",
     ),
 }
