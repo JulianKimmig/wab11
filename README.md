@@ -113,6 +113,64 @@ async with WAB11Client("192.168.1.100") as wab:
     await asyncio.sleep(3600)
 ```
 
+## Energy Statistics
+
+Call `sync_energy()` to read energy statistics; normal `sync()` alone does not
+populate them. Background polling uses `energy_interval=300` seconds by
+default. Both asynchronous and synchronous clients expose `energy.electrical`.
+With an asynchronous client:
+
+```python
+await client.sync_energy()
+
+period = client.energy.electrical
+if period is None:
+    print("Electrical energy unavailable")
+else:
+    print(f"Electrical energy today: {period.today} kWh")
+    print(f"Electrical energy yesterday: {period.yesterday} kWh")
+```
+
+For a synchronous client, call `client.sync_energy()` without `await` and use
+the same availability check.
+
+The legacy `total`, `heating`, `hot_water`, and `cooling` groups and their
+aliases remain unchanged. Available evidence indicates they describe thermal
+energy generated. The separate electrical group has `today`, `yesterday`,
+`month`, and `year` periods from optional input registers 36701–36704.
+All 20 energy definitions are read-only; four are optional at runtime.
+
+`electrical` defaults to `None`, and becomes unavailable again if an energy
+synchronization fails. Illegal Data Address (Modbus exception 2) on the
+optional block leaves legacy data usable; other communication errors still
+propagate. The block is retried on subsequent energy synchronizations.
+Successful zero readings are valid, not missing data. Consumers must also
+track connection/polling freshness. Generic named reads such as
+`read_register("energy_electrical_today")` expose the same registers but
+propagate ordinary errors, including exception 2, without updating the model.
+
+Source resolution is integer kWh: raw `2` becomes `2.0 kWh`, without decimal
+scaling. Periods overlap and must not be summed together. Calendar resets are
+expected; exact firmware rollover and overflow behavior remains unverified.
+These values are not instantaneous power or automatic COP. Neither request
+register 33103 (%) nor writable request/setpoint register 40002 (W) measures
+electrical input power.
+
+The electrical mapping is empirical: a WBB investigation reports it and a WAB
+probe confirms accessibility on one installation. It is not documented in the
+inspected manufacturer Modbus list. Exact model/firmware, display matching,
+included electrical loads, and rollovers need device-specific validation.
+See the [energy statistics contract](.docs/contracts/energy-statistics.md)
+for sources, compatibility limits, and error semantics, and the
+[variable reference](docs/variables-reference.md#energy-statistics) for keys.
+
+Reports add `energy.electrical` as four numeric fields or JSON `null`; text
+reports show unavailable data explicitly and CSV leaves those values empty.
+Consumers with strict serialized schemas must accept the additive field.
+Start a new CSV file when upgrading an existing report with the old columns;
+appending to a mismatched header raises an error before modifying the file.
+Home Assistant entities and InfluxDB deployment require a separate update.
+
 ## Security
 
 The library implements several security measures:
@@ -182,6 +240,7 @@ The main async client class.
 
 - `connect()` / `disconnect()` - Connection management
 - `sync()` - Synchronize state with device
+- `sync_energy()` - Synchronize legacy and optional electrical energy statistics
 - `start_polling(interval)` / `stop_polling()` - Background polling
 - `on_change(callback)` - Subscribe to state changes
 - `set_system_mode(mode, confirmed)` - Set system mode
@@ -217,7 +276,8 @@ from wab11 import (
 
 ## Supported Registers
 
-The library supports all documented WAB11 Modbus registers:
+The library supports documented WAB11 Modbus registers and the empirically
+observed optional electrical energy group:
 
 | Range | Description                                 |
 | ----- | ------------------------------------------- |
@@ -239,16 +299,16 @@ The library supports all documented WAB11 Modbus registers:
 
 ```bash
 # Install with dev dependencies
-pip install -e ".[dev]"
+uv sync --group dev
 
 # Run the default test suite
-pytest
+uv run pytest
 
 # Type checking
-mypy src/wab11
+uv run mypy src/wab11
 
 # Linting
-ruff check src/wab11
+uv run ruff check src/wab11
 ```
 
 ### Testing

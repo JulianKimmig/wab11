@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from wab11 import WAB11SyncClient, OperatingState
+from wab11.energy_reporting import flatten_energy, format_energy_rows, serialize_energy
 
 
 def format_temp(temp) -> str:
@@ -137,32 +138,7 @@ def collect_sensor_data(client: WAB11SyncClient) -> dict[str, Any]:
             "is_sg_maximum": client.inputs.is_sg_maximum,
             "active_inputs": client.inputs.get_active_inputs(),
         },
-        "energy": {
-            "total": {
-                "today": client.energy.total.today,
-                "yesterday": client.energy.total.yesterday,
-                "month": client.energy.total.month,
-                "year": client.energy.total.year,
-            },
-            "heating": {
-                "today": client.energy.heating.today,
-                "yesterday": client.energy.heating.yesterday,
-                "month": client.energy.heating.month,
-                "year": client.energy.heating.year,
-            },
-            "hot_water": {
-                "today": client.energy.hot_water.today,
-                "yesterday": client.energy.hot_water.yesterday,
-                "month": client.energy.hot_water.month,
-                "year": client.energy.hot_water.year,
-            },
-            "cooling": {
-                "today": client.energy.cooling.today,
-                "yesterday": client.energy.cooling.yesterday,
-                "month": client.energy.cooling.month,
-                "year": client.energy.cooling.year,
-            },
-        },
+        "energy": serialize_energy(client.energy),
     }
 
     # Collect heating circuit data
@@ -267,23 +243,7 @@ def flatten_data_for_csv(data: dict[str, Any]) -> dict[str, Any]:
         "active_inputs": ",".join(data["inputs"]["active_inputs"])
         if data["inputs"]["active_inputs"]
         else "",
-        # Energy
-        "energy_total_today": data["energy"]["total"]["today"],
-        "energy_total_yesterday": data["energy"]["total"]["yesterday"],
-        "energy_total_month": data["energy"]["total"]["month"],
-        "energy_total_year": data["energy"]["total"]["year"],
-        "energy_heating_today": data["energy"]["heating"]["today"],
-        "energy_heating_yesterday": data["energy"]["heating"]["yesterday"],
-        "energy_heating_month": data["energy"]["heating"]["month"],
-        "energy_heating_year": data["energy"]["heating"]["year"],
-        "energy_hot_water_today": data["energy"]["hot_water"]["today"],
-        "energy_hot_water_yesterday": data["energy"]["hot_water"]["yesterday"],
-        "energy_hot_water_month": data["energy"]["hot_water"]["month"],
-        "energy_hot_water_year": data["energy"]["hot_water"]["year"],
-        "energy_cooling_today": data["energy"]["cooling"]["today"],
-        "energy_cooling_yesterday": data["energy"]["cooling"]["yesterday"],
-        "energy_cooling_month": data["energy"]["cooling"]["month"],
-        "energy_cooling_year": data["energy"]["cooling"]["year"],
+        **flatten_energy(data["energy"]),
     }
 
     # Add heating circuit data (up to 5 circuits)
@@ -359,10 +319,10 @@ def write_csv(data: dict[str, Any], filepath: str) -> bool:
             reader = csv.DictReader(f)
             existing_fieldnames = reader.fieldnames or []
 
-        # Use existing field order, but add any new fields at the end
-        for field in fieldnames:
-            if field not in existing_fieldnames:
-                existing_fieldnames.append(field)
+        if set(fieldnames) != set(existing_fieldnames):
+            raise ValueError(
+                "CSV schema differs from the current report; choose a new output file"
+            )
         fieldnames = existing_fieldnames
 
         # Append new data
@@ -551,22 +511,7 @@ def generate_text_report(data: dict[str, Any]) -> str:
         f"  {'':20} {'Today':>10} {'Yesterday':>10} {'Month':>10} {'Year':>10}"
     )
     lines.append(f"  {'─' * 60}")
-    lines.append(
-        f"  {'Total':20} {energy['total']['today']:>10.1f} {energy['total']['yesterday']:>10.1f} "
-        f"{energy['total']['month']:>10.1f} {energy['total']['year']:>10.1f} kWh"
-    )
-    lines.append(
-        f"  {'Heating':20} {energy['heating']['today']:>10.1f} {energy['heating']['yesterday']:>10.1f} "
-        f"{energy['heating']['month']:>10.1f} {energy['heating']['year']:>10.1f} kWh"
-    )
-    lines.append(
-        f"  {'Hot Water':20} {energy['hot_water']['today']:>10.1f} {energy['hot_water']['yesterday']:>10.1f} "
-        f"{energy['hot_water']['month']:>10.1f} {energy['hot_water']['year']:>10.1f} kWh"
-    )
-    lines.append(
-        f"  {'Cooling':20} {energy['cooling']['today']:>10.1f} {energy['cooling']['yesterday']:>10.1f} "
-        f"{energy['cooling']['month']:>10.1f} {energy['cooling']['year']:>10.1f} kWh"
-    )
+    lines.extend(format_energy_rows(energy))
     lines.append("")
 
     # Footer

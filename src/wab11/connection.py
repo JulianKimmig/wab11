@@ -311,7 +311,14 @@ class WAB11Connection:
 
             except ModbusResponseError as e:
                 last_error = e
-                logger.warning("Modbus exception (attempt %s): %s", attempt + 1, e)
+                # Keep expected optional energy rejection quiet without changing
+                # retries or suppressing the typed error for generic callers.
+                level = (
+                    logging.DEBUG
+                    if (address, count, e.exception_code) == (36701, 4, 2)
+                    else logging.WARNING
+                )
+                logger.log(level, "Modbus exception (attempt %s): %s", attempt + 1, e)
 
             except ModbusException as e:
                 last_error = ConnectionError(f"Modbus error: {e}")

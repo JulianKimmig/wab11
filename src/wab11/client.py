@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Any, Callable, Optional
 
 from .connection import ConnectionConfig, WAB11Connection
+from .energy_sync import sync_energy_statistics
 from .exceptions import ModbusResponseError, ValidationError
 from .models.base import (
     HeatingCircuitConfig,
@@ -864,34 +865,8 @@ class WAB11Client:
         self._inputs.input_de2 = bool(input_values[7])
 
     async def _sync_energy_registers(self) -> None:
-        """Sync energy statistics."""
-        # Total energy (36101-36104)
-        total = await self._connection.read_input_registers(36101, 4)
-        self._energy.total.today = float(total[0])
-        self._energy.total.yesterday = float(total[1])
-        self._energy.total.month = float(total[2])
-        self._energy.total.year = float(total[3])
-
-        # Heating energy (36201-36204)
-        heating = await self._connection.read_input_registers(36201, 4)
-        self._energy.heating.today = float(heating[0])
-        self._energy.heating.yesterday = float(heating[1])
-        self._energy.heating.month = float(heating[2])
-        self._energy.heating.year = float(heating[3])
-
-        # Hot water energy (36301-36304)
-        hw = await self._connection.read_input_registers(36301, 4)
-        self._energy.hot_water.today = float(hw[0])
-        self._energy.hot_water.yesterday = float(hw[1])
-        self._energy.hot_water.month = float(hw[2])
-        self._energy.hot_water.year = float(hw[3])
-
-        # Cooling energy (36401-36404)
-        cooling = await self._connection.read_input_registers(36401, 4)
-        self._energy.cooling.today = float(cooling[0])
-        self._energy.cooling.yesterday = float(cooling[1])
-        self._energy.cooling.month = float(cooling[2])
-        self._energy.cooling.year = float(cooling[3])
+        """Update legacy and optional electrical periods; return None or raise."""
+        await sync_energy_statistics(self._connection, self._energy)
 
     def _update_cached_state(self, key: str, new_value: Any) -> None:
         """Update cached state with change detection."""
