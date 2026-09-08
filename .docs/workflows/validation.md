@@ -95,6 +95,12 @@ until such observations are recorded. Ordinary fake tests cannot prove them.
 
 ## Version and publication boundary
 
+Version changes keep `project.version` in
+[`pyproject.toml`](../../pyproject.toml) and the public `__version__` in
+[`src/wab11/_version.py`](../../src/wab11/_version.py) aligned, then regenerate
+[`uv.lock`](../../uv.lock) with `uv lock`. Version 0.3.0 introduces optional
+electrical energy statistics while retaining the legacy energy API.
+
 The existing publish workflow reads the version already in
 [`pyproject.toml`](../../pyproject.toml), tests, builds, publishes, and creates
 a version tag on `main`/`master`. It does not automatically increment the

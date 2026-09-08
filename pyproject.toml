@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "wab11"
-version = "0.2.0"
+version = "0.3.0"
 description = "Python library for Weishaupt WAB11 heat pump control via Modbus TCP"
 readme = "README.md"
 license = "MIT"
